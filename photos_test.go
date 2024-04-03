@@ -50,3 +50,29 @@ func TestPhotosIds(t *testing.T) {
 		fmt.Println(datas[i])
 	}
 }
+
+func TestPhotosSorts(t *testing.T) {
+	p, err := NewPhotos("./datas")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = p.AddPhoto("1", "./tmps", []string{}, []string{})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	datas, err := p.Search.Query(RequestSearch{
+		Limit: 100,
+		Sorts: []string{
+			Index_LastTimestamp,
+		},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for i := 0; i < len(datas.Result); i++ {
+		fmt.Println(datas.Result[i].LastTimestamp)
+	}
+}

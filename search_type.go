@@ -55,16 +55,16 @@ type SearchItem struct {
 	SerialId      string `json:"serialId,omitempty"` //序号
 	Filename      string `json:"filename,omitempty"`
 	Path          string `json:"path,omitempty"`
-	Size          int64  `json:"size,omitempty"`
+	Size          string `json:"size,omitempty"`
 	LastDate      string `json:"lastDate,omitempty"`      //日期 yy-mm-dd
-	LastTimestamp int64  `json:"lastTimestamp,omitempty"` //时间戳,秒
+	LastTimestamp string `json:"lastTimestamp,omitempty"` //时间戳,秒
 	Tags          any    `json:"tags,omitempty"`          //用户自定义标签
 	FileType      string `json:"fileType,omitempty"`      //文件类型
 	//exif
 	ExifModel        string `json:"exifModel,omitempty"` //型号
-	ExifWidth        int64  `json:"exifWidth,omitempty"`
-	ExifHeight       int64  `json:"exifHeight,omitempty"`
-	ExifLength       int64  `json:"exifLength,omitempty"`
+	ExifWidth        string `json:"exifWidth,omitempty"`
+	ExifHeight       string `json:"exifHeight,omitempty"`
+	ExifLength       string `json:"exifLength,omitempty"`
 	ExifOriginalDate string `json:"exifOriginalDate,omitempty"`
 }
 

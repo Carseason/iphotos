@@ -2,11 +2,13 @@ package iphotos
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -190,11 +192,12 @@ func (p *Photo) addVideoIndex(p1 string, info fs.FileInfo) error {
 		SerialId:      p.serialId,
 		Filename:      info.Name(),
 		Path:          p1,
-		Size:          info.Size(),
+		Size:          strconv.FormatInt(info.Size(), 10),
 		FileType:      FileType_Video,
 		LastDate:      info.ModTime().Format(time.DateTime),
-		LastTimestamp: info.ModTime().Unix(),
+		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
 	}
+	fmt.Println(item.LastTimestamp)
 	// 生成封面
 	GenVideoCover(p1, p.ctx.coverPath)
 	if err := p.addSearch(fileid, item); err != nil {
@@ -215,22 +218,23 @@ func (p *Photo) addImageIndex(p1 string, info fs.FileInfo) error {
 		SerialId:      p.serialId,
 		Filename:      info.Name(),
 		Path:          p1,
-		Size:          info.Size(),
+		Size:          strconv.FormatInt(info.Size(), 10),
 		FileType:      FileType_IMAGE,
 		LastDate:      info.ModTime().Format(time.DateTime),
-		LastTimestamp: info.ModTime().Unix(),
+		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
 	}
+	fmt.Println(item.LastTimestamp)
 	if rawExif, err := goexif.SearchFileAndExtractExif(p1); err == nil {
 		if tags, _, err := goexif.GetFlatExifData(rawExif, &goexif.ScanOptions{}); err == nil {
 			for i := 0; i < len(tags); i++ {
 				switch strings.TrimSpace(tags[i].TagName) {
 				case "ImageWidth":
 					if v, ok := anyToInt64(tags[i].Value); ok {
-						item.ExifWidth = v
+						item.ExifWidth = strconv.FormatInt(v, 10)
 					}
 				case "ImageHeight":
 					if v, ok := anyToInt64(tags[i].Value); ok {
-						item.ExifHeight = v
+						item.ExifHeight = strconv.FormatInt(v, 10)
 					}
 				case "Model":
 					if v, ok := tags[i].Value.(string); ok {
@@ -238,7 +242,7 @@ func (p *Photo) addImageIndex(p1 string, info fs.FileInfo) error {
 					}
 				case "ImageLength":
 					if v, ok := anyToInt64(tags[i].Value); ok {
-						item.ExifLength = v
+						item.ExifLength = strconv.FormatInt(v, 10)
 					}
 				case "DateTime":
 					if item.LastDate == "" {

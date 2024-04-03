@@ -168,6 +168,7 @@ func (b *Bleve[T, TS]) Query(req RequestSearch) (*ResponseSearch[TS], error) {
 	for i := 0; i < count; i++ {
 		entrie := res.Hits[i].Fields
 		datas[i] = entrie
+		fmt.Println(entrie["lastTimestamp"])
 	}
 	var result TS
 	by, err := json.Marshal(datas)
