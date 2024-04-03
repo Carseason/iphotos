@@ -194,11 +194,11 @@ func (p *Photo) addVideoIndex(p1 string, info fs.FileInfo) error {
 		LastDate: info.ModTime().Format(time.DateTime),
 		FileType: FileType_Video,
 	}
+	// 生成封面
+	GenVideoCover(p1, p.ctx.coverPath)
 	if err := p.addSearch(fileid, item); err != nil {
 		return err
 	}
-	coverPath := filepath.Join(p.ctx.coverPath, GenCoverFilename(p1))
-	GenVideoCover(p1, coverPath)
 	return nil
 }
 
@@ -258,6 +258,7 @@ func (p *Photo) addImageIndex(p1 string, info fs.FileInfo) error {
 			hash, _ := duplo.CreateHash(img)
 			p.ctx.Store.Add(p1, hash)
 		}
+		// 生成封面
 		ImageToCover(img, filepath.Join(p.ctx.coverPath, GenCoverFilename(p1)), 220, 220)
 	}
 	return p.addSearch(fileid, item)

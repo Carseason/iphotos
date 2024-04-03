@@ -132,3 +132,6 @@ func (ps *Photos) QueryPhoto(serialId string) (*Photo, bool) {
 	p, ok := ps.values[serialId]
 	return p, ok
 }
+func (ps *Photos) Cover(filePath string) string {
+	return filepath.Join(ps.coverPath, GenCoverFilename(filePath))
+}

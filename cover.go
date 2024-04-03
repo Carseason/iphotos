@@ -21,39 +21,39 @@ func GenCoverFilename(filePath string) string {
 
 // 生成照片略缩图
 // 保存路径，生成的文件
-func GenCover(dirPath, filePath string, width, height int) error {
+func GenCover(dirPath, filePath string, width, height int) (string, error) {
 	var err error
 	dirPath, err = filepath.Abs(dirPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	filePath, err = filepath.Abs(filePath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	abspath := filepath.Join(dirPath, GenCoverFilename(filePath))
 	// // 判断文件是否已存在
 	if _, err := os.Stat(abspath); err == nil {
-		return nil
+		return abspath, nil
 	}
 	r, err := imaging.Open(filePath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	return ImageToCover(r, abspath, width, height)
 }
-func ImageToCover(r image.Image, abspath string, width, height int) error {
+func ImageToCover(r image.Image, abspath string, width, height int) (string, error) {
 	img := imaging.Thumbnail(r, width, height, imaging.Lanczos)
 	err := imaging.Save(img, abspath)
 	// 如果是目录未找到
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		dirPath, _ := filepath.Split(abspath)
 		if err = mkdirAll(dirPath); err != nil {
-			return err
+			return "", err
 		}
 		err = imaging.Save(img, abspath)
 	}
-	return err
+	return abspath, err
 }
 
 // 流
@@ -71,7 +71,13 @@ func WriterCover(w io.Writer, filePath string, width, height int) error {
 	return err
 }
 
-func GenVideoCover(inputPath, outPath string, ns ...int) error {
+func GenVideoCover(inputPath, outPath string, ns ...int) (string, error) {
+	filename := GenCoverFilename(inputPath)
+	abspath := filepath.Join(outPath, filename)
+	// // 判断文件是否已存在
+	if _, err := os.Stat(abspath); err == nil {
+		return abspath, nil
+	}
 	var args []string
 	if len(ns) == 0 { //关键帧
 		args = []string{
@@ -108,13 +114,13 @@ func GenVideoCover(inputPath, outPath string, ns ...int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	args = append(args, []string{
-		outPath,
+		abspath,
 	}...)
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return errors.New(stderr.String())
+		return "", errors.New(stderr.String())
 	}
-	return nil
+	return abspath, nil
 }
