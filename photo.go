@@ -149,7 +149,11 @@ func (p *Photo) removeFile(p1 string) error {
 	if p.ctx.Err() != nil {
 		return errors.New("context close")
 	}
+	// 取消监控
 	p.watcher.Remove(p1)
+	// 从索引里删除
+	p.ctx.Store.Delete(p1)
+	p.ctx.Search.Delete(p.genFileID(p1))
 	return nil
 }
 func (p *Photo) genFileID(p1 string) string {
