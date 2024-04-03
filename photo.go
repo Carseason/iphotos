@@ -187,12 +187,13 @@ func (p *Photo) addVideoIndex(p1 string, info fs.FileInfo) error {
 		return nil
 	}
 	item := &SearchItem{
-		SerialId: p.serialId,
-		Filename: info.Name(),
-		Path:     p1,
-		Size:     info.Size(),
-		LastDate: info.ModTime().Format(time.DateTime),
-		FileType: FileType_Video,
+		SerialId:      p.serialId,
+		Filename:      info.Name(),
+		Path:          p1,
+		Size:          info.Size(),
+		FileType:      FileType_Video,
+		LastDate:      info.ModTime().Format(time.DateTime),
+		LastTimestamp: info.ModTime().Unix(),
 	}
 	// 生成封面
 	GenVideoCover(p1, p.ctx.coverPath)
@@ -211,12 +212,13 @@ func (p *Photo) addImageIndex(p1 string, info fs.FileInfo) error {
 		return nil
 	}
 	item := &SearchItem{
-		SerialId: p.serialId,
-		Filename: info.Name(),
-		Path:     p1,
-		Size:     info.Size(),
-		LastDate: info.ModTime().Format(time.DateTime),
-		FileType: FileType_IMAGE,
+		SerialId:      p.serialId,
+		Filename:      info.Name(),
+		Path:          p1,
+		Size:          info.Size(),
+		FileType:      FileType_IMAGE,
+		LastDate:      info.ModTime().Format(time.DateTime),
+		LastTimestamp: info.ModTime().Unix(),
 	}
 	if rawExif, err := goexif.SearchFileAndExtractExif(p1); err == nil {
 		if tags, _, err := goexif.GetFlatExifData(rawExif, &goexif.ScanOptions{}); err == nil {

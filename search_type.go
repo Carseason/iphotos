@@ -52,13 +52,14 @@ const (
 // bleve 不支持 []int64
 // 所以使用 []string 代替
 type SearchItem struct {
-	SerialId string `json:"serialId,omitempty"` //序号
-	Filename string `json:"filename,omitempty"`
-	Path     string `json:"path,omitempty"`
-	Size     int64  `json:"size,omitempty"`
-	LastDate string `json:"lastDate,omitempty"` //日期 yy-mm-dd
-	Tags     any    `json:"tags,omitempty"`     //用户自定义标签
-	FileType string `json:"fileType,omitempty"` //文件类型
+	SerialId      string `json:"serialId,omitempty"` //序号
+	Filename      string `json:"filename,omitempty"`
+	Path          string `json:"path,omitempty"`
+	Size          int64  `json:"size,omitempty"`
+	LastDate      string `json:"lastDate,omitempty"`      //日期 yy-mm-dd
+	LastTimestamp int64  `json:"lastTimestamp,omitempty"` //时间戳,秒
+	Tags          any    `json:"tags,omitempty"`          //用户自定义标签
+	FileType      string `json:"fileType,omitempty"`      //文件类型
 	//exif
 	ExifModel        string `json:"exifModel,omitempty"` //型号
 	ExifWidth        int64  `json:"exifWidth,omitempty"`
@@ -78,11 +79,11 @@ func (s *SearchItem) GetTags() []string {
 }
 
 const (
-	Index_SerialId = "serialId"
-	Index_Filename = "filename"
-	Index_FileType = "fileType"
-	Index_Tags     = "tags"
-	Index_LastDate = "lastDate"
+	Index_SerialId      = "serialId"
+	Index_Filename      = "filename"
+	Index_FileType      = "fileType"
+	Index_Tags          = "tags"
+	Index_LastTimestamp = "lastTimestamp"
 )
 
 var (
@@ -92,12 +93,12 @@ var (
 		Index_Filename,
 		Index_FileType,
 		Index_Tags,
-		Index_LastDate,
+		Index_LastTimestamp,
 	}
 	// 用于排序
 	IndexSorts = []string{
 		Index_SerialId,
 		Index_Filename,
-		Index_LastDate,
+		Index_LastTimestamp,
 	}
 )
