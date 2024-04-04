@@ -3,24 +3,19 @@ package iphotos
 import (
 	"context"
 	"errors"
-	"os"
 	"path/filepath"
 	"sync"
 )
 
 type Photos struct {
-	values    map[string]*Photo
-	Store     *Storer
-	Search    Searcher[*SearchItem, []*SearchItem]
-	path      string
-	mx        *sync.RWMutex
-	coverPath string
+	values map[string]*Photo
+	Search Searcher[*SearchItem, []*SearchItem]
+	path   string
+	mx     *sync.RWMutex
 }
 type Context struct {
 	context.Context
-	Search    Searcher[*SearchItem, []*SearchItem]
-	Store     *Storer
-	coverPath string
+	Search Searcher[*SearchItem, []*SearchItem]
 }
 
 // 存储目录
@@ -32,42 +27,22 @@ func NewPhotos(p1 string) (*Photos, error) {
 	if err := mkdirAll(p1); err != nil {
 		return nil, err
 	}
-	searchPath := filepath.Join(p1, "search")
-	storePath := filepath.Join(p1, "duplos")
-	coversPath := filepath.Join(p1, "covers")
-	if err := mkdirAll(searchPath); err != nil {
-		return nil, err
-	}
-	if err := mkdirAll(storePath); err != nil {
-		return nil, err
-	}
-	if err := mkdirAll(coversPath); err != nil {
-		return nil, err
-	}
-	s, err := NewSearch(searchPath, IndexPropertys, IndexSorts)
-	if err != nil {
-		return nil, err
-	}
-	s1, err := NewStore(storePath)
+	s, err := NewSearch(p1, IndexPropertys, IndexSorts)
 	if err != nil {
 		return nil, err
 	}
 	ipos := &Photos{
-		path:      p1,
-		values:    make(map[string]*Photo),
-		mx:        &sync.RWMutex{},
-		Search:    s,
-		Store:     s1,
-		coverPath: coversPath,
+		path:   p1,
+		values: make(map[string]*Photo),
+		mx:     &sync.RWMutex{},
+		Search: s,
 	}
 	return ipos, nil
 }
 func (p *Photos) newContext() *Context {
 	return &Context{
-		Context:   context.Background(),
-		Search:    p.Search,
-		Store:     p.Store,
-		coverPath: p.coverPath,
+		Context: context.Background(),
+		Search:  p.Search,
 	}
 }
 
@@ -77,9 +52,6 @@ func (ps *Photos) ReloadIndex() error {
 	defer ps.mx.Unlock()
 	var errs error
 	if err := ps.Search.Reload(); err != nil {
-		errs = errors.Join(errs, err)
-	}
-	if err := ps.Store.Reload(); err != nil {
 		errs = errors.Join(errs, err)
 	}
 	return errs
@@ -99,16 +71,7 @@ func (ps *Photos) AddPhoto(serialId, path string, excludeDirs []string, excludeP
 	if err != nil {
 		return err
 	}
-	path, err = filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-	if info, err := os.Lstat(path); err != nil { //判断文件夹是否存在
-		return err
-	} else if !info.IsDir() {
-		return errors.New("not found dir")
-	}
-	if err := p.addPath(path); err != nil {
+	if err := p.AddPATH(path); err != nil {
 		return err
 	}
 	ps.values[serialId] = p
@@ -146,7 +109,4 @@ func (ps *Photos) QueryPhoto(serialId string) (*Photo, bool) {
 	defer ps.mx.RUnlock()
 	p, ok := ps.values[serialId]
 	return p, ok
-}
-func (ps *Photos) Cover(filePath string) string {
-	return filepath.Join(ps.coverPath, GenCoverFilename(filePath))
 }

@@ -3,6 +3,7 @@ package iphotos
 type Searcher[T SearchT, TS SearchTS] interface {
 	Exist(string) bool
 	Query(RequestSearch) (*ResponseSearch[TS], error)
+	Count() (int64, error)
 	Ids(RequestSearch) ([]string, error)
 	Add(map[string]T) error
 	Delete(...string) error
@@ -58,6 +59,7 @@ type SearchItem struct {
 	LastTimestamp string `json:"lastTimestamp,omitempty"` //时间戳,秒
 	Tags          any    `json:"tags,omitempty"`          //用户自定义标签
 	FileType      string `json:"fileType,omitempty"`      //文件类型
+	Public        string `json:"public,omitempty"`        //如果为 "1" 则是可公开的，否则是被手动隐藏了
 	//exif
 	ExifModel        string `json:"exifModel,omitempty"` //型号
 	ExifWidth        string `json:"exifWidth,omitempty"`
@@ -82,6 +84,11 @@ const (
 	Index_FileType      = "fileType"
 	Index_Tags          = "tags"
 	Index_LastTimestamp = "lastTimestamp"
+	Index_Public        = "public"
+)
+const (
+	Public_PUBLIC = "1"
+	Public_Hidden = "0"
 )
 
 var (
@@ -92,6 +99,7 @@ var (
 		Index_FileType,
 		Index_Tags,
 		Index_LastTimestamp,
+		Index_Public,
 	}
 	// 用于排序
 	IndexSorts = []string{

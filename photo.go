@@ -8,12 +8,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/disintegration/imaging"
-	goexif "github.com/dsoprea/go-exif/v3"
 	"github.com/fsnotify/fsnotify"
-	"github.com/rivo/duplo"
 )
 
 type Photo struct {
@@ -24,6 +22,9 @@ type Photo struct {
 	// 排除的路径
 	excludePaths map[string]struct{}
 	ctx          *Context
+	loading      bool //是否正在配置中
+	paths        []string
+	mx           *sync.RWMutex
 }
 
 // 创建相册程序,如果有多个相册,则需要创建多个
@@ -38,6 +39,7 @@ func NewPhoto(ctx *Context, serialId string, excludeDirs, excludePaths []string)
 		excludeDirs:  map[string]struct{}{},
 		excludePaths: map[string]struct{}{},
 		ctx:          ctx,
+		mx:           &sync.RWMutex{},
 	}
 	for _, k := range excludeDirs {
 		p.excludeDirs[k] = struct{}{}
@@ -49,8 +51,55 @@ func NewPhoto(ctx *Context, serialId string, excludeDirs, excludePaths []string)
 	return p, nil
 }
 func (p *Photo) close() {
+	p.mx.Lock()
+	defer p.mx.Unlock()
 	defer p.ctx.Done()
 	defer p.watcher.Close()
+}
+func (p *Photo) Loading() bool {
+	return p.loading
+}
+func (p *Photo) AddPATH(p1 string) error {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+	p1, err := filepath.Abs(p1)
+	if err != nil {
+		return err
+	}
+	if info, err := os.Lstat(p1); err != nil { //判断文件夹是否存在
+		return err
+	} else if !info.IsDir() {
+		return errors.New("not found dir")
+	}
+	//
+	for i := 0; i < len(p.paths); i++ {
+		if p.paths[i] == p1 {
+			return nil
+		}
+	}
+	p.loading = true
+	defer func() {
+		p.loading = false
+	}()
+	p.paths = append(p.paths, p1)
+	return p.addPath(p1)
+}
+
+// 重新开始索引
+func (p *Photo) Restart() error {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+	p.loading = true
+	defer func() {
+		p.loading = false
+	}()
+	var errs error
+	for i := 0; i < len(p.paths); i++ {
+		if err := p.addPath(p.paths[i]); err != nil {
+			errs = errors.Join(errs, err)
+		}
+	}
+	return errs
 }
 
 // 添加照片库路径
@@ -158,7 +207,6 @@ func (p *Photo) removeFile(p1 string) error {
 	// 取消监控
 	p.watcher.Remove(p1)
 	// 从索引里删除
-	p.ctx.Store.Delete(p1)
 	p.ctx.Search.Delete(p.genFileID(p1))
 	return nil
 }
@@ -200,9 +248,8 @@ func (p *Photo) addVideoIndex(p1 string) error {
 		FileType:      FileType_Video,
 		LastDate:      info.ModTime().Format(time.DateTime),
 		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
+		Public:        Public_PUBLIC,
 	}
-	// 生成封面
-	GenVideoCover(p1, p.ctx.coverPath)
 	if err := p.addSearch(fileid, item); err != nil {
 		return err
 	}
@@ -229,49 +276,15 @@ func (p *Photo) addImageIndex(p1 string) error {
 		FileType:      FileType_IMAGE,
 		LastDate:      info.ModTime().Format(time.DateTime),
 		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
+		Public:        Public_PUBLIC,
 	}
-	if rawExif, err := goexif.SearchFileAndExtractExif(p1); err == nil {
-		if tags, _, err := goexif.GetFlatExifData(rawExif, &goexif.ScanOptions{}); err == nil {
-			for i := 0; i < len(tags); i++ {
-				switch strings.TrimSpace(tags[i].TagName) {
-				case "ImageWidth":
-					if v, ok := anyToInt64(tags[i].Value); ok {
-						item.ExifWidth = strconv.FormatInt(v, 10)
-					}
-				case "ImageHeight":
-					if v, ok := anyToInt64(tags[i].Value); ok {
-						item.ExifHeight = strconv.FormatInt(v, 10)
-					}
-				case "Model":
-					if v, ok := tags[i].Value.(string); ok {
-						item.ExifModel = v
-					}
-				case "ImageLength":
-					if v, ok := anyToInt64(tags[i].Value); ok {
-						item.ExifLength = strconv.FormatInt(v, 10)
-					}
-				case "DateTime":
-					if item.LastDate == "" {
-						if v, ok := tags[i].Value.(string); ok {
-							item.LastDate = v
-						}
-					}
-				case "DateTimeOriginal":
-					if v, ok := tags[i].Value.(string); ok {
-						item.ExifOriginalDate = v
-					}
-				}
-				// fmt.Printf("%v: %v\n", tags[i].TagName, tags[i].Value)
-			}
-		}
-	}
-	if img, err := imaging.Open(p1); err == nil {
-		if p.ctx.Store != nil {
-			hash, _ := duplo.CreateHash(img)
-			p.ctx.Store.Add(p1, hash)
-		}
-		// 生成封面
-		ImageToCover(img, filepath.Join(p.ctx.coverPath, GenCoverFilename(p1)), 220, 220)
+	// 处理exif
+	if rawExif, err := GetImageExif(p1); err == nil {
+		item.ExifHeight = rawExif.ExifHeight
+		item.ExifWidth = rawExif.ExifWidth
+		item.ExifModel = rawExif.ExifModel
+		item.ExifLength = rawExif.ExifLength
+		item.ExifOriginalDate = rawExif.ExifOriginalDate
 	}
 	return p.addSearch(fileid, item)
 }
@@ -291,6 +304,8 @@ func (p *Photo) addSearch(fileid string, value *SearchItem) error {
 
 // 为文件添加标签
 func (p *Photo) AddTag(p1 string, tag string) error {
+	p.mx.Lock()
+	defer p.mx.Unlock()
 	if p.ctx.Err() != nil {
 		return errors.New("context close")
 	}

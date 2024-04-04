@@ -207,3 +207,16 @@ func (b *Bleve[T, TS]) Ids(req RequestSearch) ([]string, error) {
 	}
 	return datas, nil
 }
+
+func (b *Bleve[T, TS]) Count() (int64, error) {
+	b.mx.RLock()
+	defer b.mx.RUnlock()
+	searchReq := b.genQuery(RequestSearch{
+		Limit: 0,
+	})
+	res, err := b.index.Search(searchReq)
+	if err != nil {
+		return 0, err
+	}
+	return int64(res.Total), nil
+}

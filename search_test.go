@@ -29,12 +29,12 @@ func TestSearchQuery(t *testing.T) {
 		t.Error(err)
 	}
 	val, err := s.Query(RequestSearch{
-		Filters: map[string]interface{}{
-			Index_SerialId: "8",
-		},
-		Sorts: []string{
-			Index_Filename,
-		},
+		// Filters: map[string]interface{}{
+		// 	Index_SerialId: "8",
+		// },
+		// Sorts: []string{
+		// 	Index_Filename,
+		// },
 		Limit: 10,
 	})
 	if err != nil {
@@ -43,4 +43,16 @@ func TestSearchQuery(t *testing.T) {
 	for i := 0; i < len(val.Result); i++ {
 		fmt.Println(val.Result[i])
 	}
+}
+
+func TestSearchCount(t *testing.T) {
+	s, err := NewSearch("./datas", IndexPropertys, IndexSorts)
+	if err != nil {
+		t.Error(err)
+	}
+	total, err := s.Count()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(total)
 }

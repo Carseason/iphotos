@@ -15,28 +15,28 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-func GenCoverFilename(filePath string) string {
-	return toBase64(filePath) + ".png"
+func GenCoverFilename(inputFilePath string) string {
+	return toBase64(inputFilePath) + ".png"
 }
 
 // 生成照片略缩图
 // 保存路径，生成的文件
-func GenCover(dirPath, filePath string, width, height int) (string, error) {
+func GenCover(outPath, inputFilePath string, width, height int) (string, error) {
 	var err error
-	dirPath, err = filepath.Abs(dirPath)
+	outPath, err = filepath.Abs(outPath)
 	if err != nil {
 		return "", err
 	}
-	filePath, err = filepath.Abs(filePath)
+	inputFilePath, err = filepath.Abs(inputFilePath)
 	if err != nil {
 		return "", err
 	}
-	abspath := filepath.Join(dirPath, GenCoverFilename(filePath))
+	abspath := filepath.Join(outPath, GenCoverFilename(inputFilePath))
 	// // 判断文件是否已存在
 	if _, err := os.Stat(abspath); err == nil {
 		return abspath, nil
 	}
-	r, err := imaging.Open(filePath)
+	r, err := imaging.Open(inputFilePath)
 	if err != nil {
 		return "", err
 	}
@@ -47,8 +47,8 @@ func ImageToCover(r image.Image, abspath string, width, height int) (string, err
 	err := imaging.Save(img, abspath)
 	// 如果是目录未找到
 	if err != nil && errors.Is(err, os.ErrNotExist) {
-		dirPath, _ := filepath.Split(abspath)
-		if err = mkdirAll(dirPath); err != nil {
+		outPath, _ := filepath.Split(abspath)
+		if err = mkdirAll(outPath); err != nil {
 			return "", err
 		}
 		err = imaging.Save(img, abspath)
@@ -57,12 +57,12 @@ func ImageToCover(r image.Image, abspath string, width, height int) (string, err
 }
 
 // 流
-func WriterCover(w io.Writer, filePath string, width, height int) error {
-	format, err := imaging.FormatFromFilename(filePath)
+func WriterCover(w io.Writer, inputFilePath string, width, height int) error {
+	format, err := imaging.FormatFromFilename(inputFilePath)
 	if err != nil {
 		return err
 	}
-	r, err := imaging.Open(filePath)
+	r, err := imaging.Open(inputFilePath)
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,6 @@ func WriterCover(w io.Writer, filePath string, width, height int) error {
 	err = imaging.Encode(w, img, format)
 	return err
 }
-
 func GenVideoCover(inputPath, outPath string, ns ...int) (string, error) {
 	filename := GenCoverFilename(inputPath)
 	abspath := filepath.Join(outPath, filename)
