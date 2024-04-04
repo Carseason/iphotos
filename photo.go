@@ -53,8 +53,8 @@ func (p *Photo) close() {
 	defer p.watcher.Close()
 }
 
-// 添加监控路径
-// 必须是文件夹
+// 添加照片库路径
+// 必须是文件夹,并且监控该路径
 func (p *Photo) addPath(p1 string) error {
 	if p.ctx.Err() != nil {
 		return errors.New("context close")
@@ -70,23 +70,35 @@ func (p *Photo) addPath(p1 string) error {
 	if err := p.watcher.Add(p1); err != nil {
 		return err
 	}
-	files, err := readDir(p1)
+	f, err := os.Open(p1)
 	if err != nil {
 		return err
 	}
-	n := len(files)
+	defer f.Close()
 	dirs := []string{}
-	// 先处理照片在处理文件夹
-	for i := 0; i < n; i++ {
-		p2 := filepath.Join(p1, files[i].Name())
-		if files[i].IsDir() {
-			dirs = append(dirs, p2)
-		} else {
-			p.walkPhotos(p2)
+	for {
+		// 每次只读10条
+		files, err := f.Readdir(10)
+		if err != nil {
+			break
+		}
+		n := len(files)
+		// 先处理照片在处理文件夹
+		for i := 0; i < n; i++ {
+			p2 := filepath.Join(p1, files[i].Name())
+			if files[i].IsDir() {
+				dirs = append(dirs, p2)
+			} else {
+				p.walkPhotos(p2)
+			}
 		}
 	}
-	n = len(dirs)
-	for i := 0; i < n; i++ {
+	// 已经处理完照片文件里,手动关闭当前文件
+	// 再开始处理文件夹
+	f.Close()
+	// 处理文件夹
+	ds := len(dirs)
+	for i := 0; i < ds; i++ {
 		p.addPath(dirs[i])
 	}
 	return nil
@@ -154,7 +166,7 @@ func (p *Photo) genFileID(p1 string) string {
 	return GenFileID(p.serialId, toBase64(p1))
 }
 
-// 搜索该目录下的所有照片视频文件
+// 处理照片视频文件
 func (p *Photo) walkPhotos(p1 string) error {
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(filepath.Base(p1)), "."))
 	switch ext {

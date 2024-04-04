@@ -11,7 +11,7 @@ func TestPhotos(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = p.AddPhoto("1", "/Volumes/sdb1/gallery-dl/Downloads/twitter", []string{}, []string{})
+	err = p.AddPhoto("1", "./", []string{}, []string{})
 	if err != nil {
 		t.Error(err)
 		return
