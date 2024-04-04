@@ -30,8 +30,6 @@ type RequestSearch struct {
 	// Filter: "id > 1 AND genres = Action",
 	Filters map[string]interface{}
 	Sorts   []string
-	// 查询全部
-	All bool
 	// 倒叙
 	Explain bool
 }

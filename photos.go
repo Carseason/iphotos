@@ -113,12 +113,17 @@ func (ps *Photos) RemovePhoto(serialId string, deleteIndex bool) error {
 	}
 	// 删除索引
 	if deleteIndex {
-		if datas, err := ps.Search.Ids(RequestSearch{
-			Filters: map[string]interface{}{
-				Index_SerialId: serialId,
-			},
-			All: true,
-		}); err == nil {
+		// 每次查询30条来删除
+		for i := 0; ; i++ {
+			datas, err := ps.Search.Ids(RequestSearch{
+				Limit: 30,
+				Filters: map[string]interface{}{
+					Index_SerialId: serialId,
+				},
+			})
+			if err != nil || len(datas) == 0 {
+				break
+			}
 			ps.Search.Delete(datas...)
 		}
 	}

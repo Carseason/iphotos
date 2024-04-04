@@ -39,9 +39,7 @@ func TestPhotosIds(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	datas, err := p.Search.Ids(RequestSearch{
-		All: true,
-	})
+	datas, err := p.Search.Ids(RequestSearch{})
 	if err != nil {
 		t.Error(err)
 		return
@@ -74,5 +72,43 @@ func TestPhotosSorts(t *testing.T) {
 	}
 	for i := 0; i < len(datas.Result); i++ {
 		fmt.Println(datas.Result[i].LastTimestamp)
+	}
+}
+
+func TestPhotosRemovePhoto(t *testing.T) {
+	p, err := NewPhotos("./datas")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = p.AddPhoto("1", "./tmps", []string{}, []string{})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = p.RemovePhoto("1", true)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+func TestPhotosQuery(t *testing.T) {
+	p, err := NewPhotos("./datas")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	datas, err := p.Search.Query(RequestSearch{
+		Limit: 10,
+		Filters: map[string]interface{}{
+			Index_SerialId: "1",
+		},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for i := 0; i < len(datas.Result); i++ {
+		fmt.Println(datas.Result[i])
 	}
 }

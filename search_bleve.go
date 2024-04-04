@@ -131,9 +131,6 @@ func (b *Bleve[T, TS]) genQuery(req RequestSearch) *bleve.SearchRequest {
 	}
 
 	qs := query.NewConjunctionQuery(q)
-	if req.All {
-		return bleve.NewSearchRequest(qs)
-	}
 	return bleve.NewSearchRequestOptions(qs, int(req.Limit), int(req.Offset), req.Explain) //搜索模板，数量，开始，正反排序
 }
 func (b *Bleve[T, TS]) Query(req RequestSearch) (*ResponseSearch[TS], error) {
