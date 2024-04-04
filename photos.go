@@ -84,6 +84,8 @@ func (ps *Photos) RemovePhoto(serialId string, deleteIndex bool) error {
 	if !ok {
 		return errors.New("serialId not found photo")
 	}
+	p.close()
+	delete(ps.values, serialId)
 	// 删除索引
 	if deleteIndex {
 		// 每次查询30条来删除
@@ -100,8 +102,6 @@ func (ps *Photos) RemovePhoto(serialId string, deleteIndex bool) error {
 			ps.Search.Delete(datas...)
 		}
 	}
-	p.close()
-	delete(ps.values, serialId)
 	return nil
 }
 func (ps *Photos) QueryPhoto(serialId string) (*Photo, bool) {
@@ -109,4 +109,10 @@ func (ps *Photos) QueryPhoto(serialId string) (*Photo, bool) {
 	defer ps.mx.RUnlock()
 	p, ok := ps.values[serialId]
 	return p, ok
+}
+func (ps *Photos) QueryPhotoIndexing(serialId string) bool {
+	if p, ok := ps.values[serialId]; ok {
+		return p.Indexing()
+	}
+	return false
 }

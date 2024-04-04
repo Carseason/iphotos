@@ -1,6 +1,7 @@
 package iphotos
 
 import (
+	"context"
 	"errors"
 	"log"
 	"os"
@@ -25,6 +26,7 @@ type Photo struct {
 	indexing     bool //是否正在配置中
 	paths        []string
 	mx           *sync.RWMutex
+	ptx          context.Context
 }
 
 // 创建相册程序,如果有多个相册,则需要创建多个
@@ -38,8 +40,9 @@ func NewPhoto(ctx *Context, serialId string, excludeDirs, excludePaths []string)
 		serialId:     serialId,
 		excludeDirs:  map[string]struct{}{},
 		excludePaths: map[string]struct{}{},
-		ctx:          ctx,
 		mx:           &sync.RWMutex{},
+		ctx:          ctx,
+		ptx:          context.Background(),
 	}
 	for _, k := range excludeDirs {
 		p.excludeDirs[k] = struct{}{}
@@ -51,10 +54,10 @@ func NewPhoto(ctx *Context, serialId string, excludeDirs, excludePaths []string)
 	return p, nil
 }
 func (p *Photo) close() {
+	p.ptx.Done()
 	p.mx.Lock()
 	defer p.mx.Unlock()
-	defer p.ctx.Done()
-	defer p.watcher.Close()
+	p.watcher.Close()
 }
 func (p *Photo) Indexing() bool {
 	return p.indexing
@@ -77,12 +80,19 @@ func (p *Photo) AddPATH(p1 string) error {
 			return nil
 		}
 	}
-	p.indexing = true
+	p.paths = append(p.paths, p1)
+	// 避免堵塞
+	go p.startIndex(p1)
+	return nil
+}
+func (p *Photo) startIndex(p1 string) {
+	p.mx.Lock()
 	defer func() {
 		p.indexing = false
+		p.mx.Unlock()
 	}()
-	p.paths = append(p.paths, p1)
-	return p.addPath(p1)
+	p.indexing = true
+	p.addPath(p1)
 }
 
 // 重新开始索引
@@ -105,7 +115,7 @@ func (p *Photo) Restart() error {
 // 添加照片库路径
 // 必须是文件夹,并且监控该路径
 func (p *Photo) addPath(p1 string) error {
-	if p.ctx.Err() != nil {
+	if p.ptx.Err() != nil {
 		return errors.New("context close")
 	}
 	// 排除路径
@@ -201,7 +211,7 @@ func (p *Photo) createFile(p1 string) error {
 	return p.walkPhotos(p1)
 }
 func (p *Photo) removeFile(p1 string) error {
-	if p.ctx.Err() != nil {
+	if p.ptx.Err() != nil {
 		return errors.New("context close")
 	}
 	// 取消监控
@@ -216,6 +226,9 @@ func (p *Photo) genFileID(p1 string) string {
 
 // 处理照片视频文件
 func (p *Photo) walkPhotos(p1 string) error {
+	if p.ptx.Err() != nil {
+		return errors.New("context close")
+	}
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(filepath.Base(p1)), "."))
 	switch ext {
 	// 照片
@@ -292,12 +305,9 @@ func (p *Photo) addImageIndex(p1 string) error {
 
 // 添加文件至索引
 func (p *Photo) addSearch(fileid string, value *SearchItem) error {
-	if p.ctx.Err() != nil {
+	if p.ptx.Err() != nil {
 		return errors.New("context close")
 	}
-	// if p.ctx.Search == nil {
-	// 	return errors.New("uninitialized search")
-	// }
 	return p.ctx.Search.Add(map[string]*SearchItem{
 		fileid: value,
 	})
@@ -307,7 +317,7 @@ func (p *Photo) addSearch(fileid string, value *SearchItem) error {
 func (p *Photo) AddTag(p1 string, tag string) error {
 	p.mx.Lock()
 	defer p.mx.Unlock()
-	if p.ctx.Err() != nil {
+	if p.ptx.Err() != nil {
 		return errors.New("context close")
 	}
 	fileid := GenFileID(p1)
