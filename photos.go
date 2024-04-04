@@ -3,6 +3,7 @@ package iphotos
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"sync"
 )
@@ -97,6 +98,15 @@ func (ps *Photos) AddPhoto(serialId, path string, excludeDirs []string, excludeP
 	p, err := NewPhoto(ps.newContext(), serialId, excludeDirs, excludePaths)
 	if err != nil {
 		return err
+	}
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	if info, err := os.Lstat(path); err != nil { //判断文件夹是否存在
+		return err
+	} else if !info.IsDir() {
+		return errors.New("not found dir")
 	}
 	if err := p.addPath(path); err != nil {
 		return err

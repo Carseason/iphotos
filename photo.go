@@ -2,7 +2,6 @@ package iphotos
 
 import (
 	"errors"
-	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -55,13 +54,10 @@ func (p *Photo) close() {
 }
 
 // 添加监控路径
+// 必须是文件夹
 func (p *Photo) addPath(p1 string) error {
 	if p.ctx.Err() != nil {
 		return errors.New("context close")
-	}
-	p1, err := filepath.Abs(p1)
-	if err != nil {
-		return err
 	}
 	// 排除路径
 	if _, ok := p.excludePaths[p1]; ok {
@@ -71,31 +67,29 @@ func (p *Photo) addPath(p1 string) error {
 	if _, ok := p.excludeDirs[filepath.Base(p1)]; ok {
 		return errors.New("exclude dirName")
 	}
-	if info, err := os.Lstat(p1); err != nil { //判断文件夹是否存在
-		return err
-	} else if !info.IsDir() {
-		return errors.New("not found dir")
-	}
 	if err := p.watcher.Add(p1); err != nil {
 		return err
 	}
-	// 监听深层目录
-	return filepath.WalkDir(p1, func(p2 string, d fs.DirEntry, err error) error {
-		if p.ctx.Err() != nil {
-			return errors.New("context close")
+	files, err := readDir(p1)
+	if err != nil {
+		return err
+	}
+	n := len(files)
+	dirs := []string{}
+	// 先处理照片在处理文件夹
+	for i := 0; i < n; i++ {
+		p2 := filepath.Join(p1, files[i].Name())
+		if files[i].IsDir() {
+			dirs = append(dirs, p2)
+		} else {
+			p.walkPhotos(p2)
 		}
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return p.watcher.AddWith(p2)
-		}
-		info, err := d.Info()
-		if err != nil {
-			return err
-		}
-		return p.walkPhotos(p2, info)
-	})
+	}
+	n = len(dirs)
+	for i := 0; i < n; i++ {
+		p.addPath(dirs[i])
+	}
+	return nil
 }
 func (p *Photo) watchFile() {
 	for {
@@ -143,7 +137,7 @@ func (p *Photo) createFile(p1 string) error {
 		return p.addPath(p1)
 	}
 	// 处理里面的视频文件
-	return p.walkPhotos(p1, info)
+	return p.walkPhotos(p1)
 }
 func (p *Photo) removeFile(p1 string) error {
 	if p.ctx.Err() != nil {
@@ -161,35 +155,30 @@ func (p *Photo) genFileID(p1 string) string {
 }
 
 // 搜索该目录下的所有照片视频文件
-func (p *Photo) walkPhotos(p1 string, info fs.FileInfo) error {
-	var err error
-	if info == nil {
-		if info, err = os.Lstat(p1); err != nil {
-			return err
-		}
-	}
-	if info.IsDir() {
-		return nil
-	}
+func (p *Photo) walkPhotos(p1 string) error {
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(filepath.Base(p1)), "."))
 	switch ext {
 	// 照片
 	case "jpg", "gif", "png", "webp", "jpeg", "heic", "heif":
-		return p.addImageIndex(p1, info)
+		return p.addImageIndex(p1)
 	// 视频
 	case "mp4", "mkv", "mov", "wmv", "flv", "m3u8", "ts", "avi", "webm", "avchd":
-		return p.addVideoIndex(p1, info)
+		return p.addVideoIndex(p1)
 	}
-	return err
+	return nil
 }
 
 // 添加视频
-func (p *Photo) addVideoIndex(p1 string, info fs.FileInfo) error {
+func (p *Photo) addVideoIndex(p1 string) error {
 	// 生成文件id
 	fileid := p.genFileID(p1)
 	// 判断是否已存在
 	if ok := p.ctx.Search.Exist(fileid); ok {
 		return nil
+	}
+	info, err := os.Stat(p1)
+	if err != nil {
+		return err
 	}
 	item := &SearchItem{
 		SerialId:      p.serialId,
@@ -209,12 +198,16 @@ func (p *Photo) addVideoIndex(p1 string, info fs.FileInfo) error {
 }
 
 // 添加照片
-func (p *Photo) addImageIndex(p1 string, info fs.FileInfo) error {
+func (p *Photo) addImageIndex(p1 string) error {
 	// 生成文件id
 	fileid := p.genFileID(p1)
 	// 判断是否已存在
 	if ok := p.ctx.Search.Exist(fileid); ok {
 		return nil
+	}
+	info, err := os.Stat(p1)
+	if err != nil {
+		return err
 	}
 	item := &SearchItem{
 		SerialId:      p.serialId,
