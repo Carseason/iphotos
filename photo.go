@@ -22,7 +22,7 @@ type Photo struct {
 	// 排除的路径
 	excludePaths map[string]struct{}
 	ctx          *Context
-	loading      bool //是否正在配置中
+	indexing     bool //是否正在配置中
 	paths        []string
 	mx           *sync.RWMutex
 }
@@ -56,8 +56,8 @@ func (p *Photo) close() {
 	defer p.ctx.Done()
 	defer p.watcher.Close()
 }
-func (p *Photo) Loading() bool {
-	return p.loading
+func (p *Photo) Indexing() bool {
+	return p.indexing
 }
 func (p *Photo) AddPATH(p1 string) error {
 	p.mx.Lock()
@@ -77,9 +77,9 @@ func (p *Photo) AddPATH(p1 string) error {
 			return nil
 		}
 	}
-	p.loading = true
+	p.indexing = true
 	defer func() {
-		p.loading = false
+		p.indexing = false
 	}()
 	p.paths = append(p.paths, p1)
 	return p.addPath(p1)
@@ -89,9 +89,9 @@ func (p *Photo) AddPATH(p1 string) error {
 func (p *Photo) Restart() error {
 	p.mx.Lock()
 	defer p.mx.Unlock()
-	p.loading = true
+	p.indexing = true
 	defer func() {
-		p.loading = false
+		p.indexing = false
 	}()
 	var errs error
 	for i := 0; i < len(p.paths); i++ {
