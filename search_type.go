@@ -51,6 +51,7 @@ const (
 // bleve 不支持 []int64
 // 所以使用 []string 代替
 type SearchItem struct {
+	ID            string `json:"id,omitempty"`       //搜索id
 	SerialId      string `json:"serialId,omitempty"` //序号
 	Filename      string `json:"filename,omitempty"`
 	Path          string `json:"path,omitempty"`

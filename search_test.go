@@ -41,7 +41,7 @@ func TestSearchQuery(t *testing.T) {
 		t.Error(err)
 	}
 	for i := 0; i < len(val.Result); i++ {
-		fmt.Println(val.Result[i])
+		fmt.Println(val.Result[i].ID)
 	}
 }
 

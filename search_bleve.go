@@ -164,6 +164,7 @@ func (b *Bleve[T, TS]) Query(req RequestSearch) (*ResponseSearch[TS], error) {
 	datas := make([]map[string]any, count)
 	for i := 0; i < count; i++ {
 		entrie := res.Hits[i].Fields
+		entrie["id"] = res.Hits[i].ID
 		datas[i] = entrie
 	}
 	var result TS
