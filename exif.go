@@ -10,6 +10,7 @@ import (
 type Exif struct {
 	LastDate         string `json:"exifLastDate,omitempty"`
 	ExifModel        string `json:"exifModel,omitempty"` //型号
+	ExifMake         string `json:"exifMake,omitempty"`  //型号
 	ExifWidth        string `json:"exifWidth,omitempty"`
 	ExifHeight       string `json:"exifHeight,omitempty"`
 	ExifLength       string `json:"exifLength,omitempty"`
@@ -43,6 +44,10 @@ func GetImageExif(p1 string) (*Exif, error) {
 		case "Model":
 			if v, ok := tags[i].Value.(string); ok {
 				item.ExifModel = v
+			}
+		case "Make":
+			if v, ok := tags[i].Value.(string); ok {
+				item.ExifMake = v
 			}
 		case "ImageLength":
 			if v, ok := anyToInt64(tags[i].Value); ok {

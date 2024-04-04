@@ -285,6 +285,7 @@ func (p *Photo) addImageIndex(p1 string) error {
 		item.ExifModel = rawExif.ExifModel
 		item.ExifLength = rawExif.ExifLength
 		item.ExifOriginalDate = rawExif.ExifOriginalDate
+		item.ExifMake = rawExif.ExifMake
 	}
 	return p.addSearch(fileid, item)
 }

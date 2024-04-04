@@ -62,6 +62,7 @@ type SearchItem struct {
 	Public        string `json:"public,omitempty"`        //如果为 "1" 则是可公开的，否则是被手动隐藏了
 	//exif
 	ExifModel        string `json:"exifModel,omitempty"` //型号
+	ExifMake         string `json:"exifMake,omitempty"`  //品牌
 	ExifWidth        string `json:"exifWidth,omitempty"`
 	ExifHeight       string `json:"exifHeight,omitempty"`
 	ExifLength       string `json:"exifLength,omitempty"`
@@ -85,6 +86,8 @@ const (
 	Index_Tags          = "tags"
 	Index_LastTimestamp = "lastTimestamp"
 	Index_Public        = "public"
+	Index_Model         = "exifModel"
+	Index_Make          = "exifMake"
 )
 const (
 	Public_PUBLIC = "1"
@@ -100,6 +103,8 @@ var (
 		Index_Tags,
 		Index_LastTimestamp,
 		Index_Public,
+		Index_Model,
+		Index_Make,
 	}
 	// 用于排序
 	IndexSorts = []string{
