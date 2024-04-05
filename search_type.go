@@ -60,6 +60,7 @@ type SearchItem struct {
 	LastTimestamp string `json:"lastTimestamp,omitempty"` //时间戳,秒
 	Tags          any    `json:"tags,omitempty"`          //用户自定义标签
 	FileType      string `json:"fileType,omitempty"`      //文件类型
+	FileExt       string `json:"fileExt,omitempty"`       //文件后缀
 	Public        string `json:"public,omitempty"`        //如果为 "1" 则是可公开的，否则是被手动隐藏了
 	//exif
 	ExifModel        string `json:"exifModel,omitempty"` //型号
@@ -84,6 +85,7 @@ const (
 	Index_SerialId      = "serialId"
 	Index_Filename      = "filename"
 	Index_FileType      = "fileType"
+	Index_FileExt       = "fileExt"
 	Index_Tags          = "tags"
 	Index_LastTimestamp = "lastTimestamp"
 	Index_Public        = "public"
@@ -101,6 +103,7 @@ var (
 		Index_SerialId,
 		Index_Filename,
 		Index_FileType,
+		Index_FileExt,
 		Index_Tags,
 		Index_LastTimestamp,
 		Index_Public,

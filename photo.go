@@ -233,16 +233,16 @@ func (p *Photo) walkPhotos(p1 string) error {
 	switch ext {
 	// 照片
 	case "jpg", "gif", "png", "webp", "jpeg", "heic", "heif":
-		return p.addImageIndex(p1)
+		return p.addImageIndex(p1, ext)
 	// 视频
 	case "mp4", "mkv", "mov", "wmv", "flv", "m3u8", "ts", "avi", "webm", "avchd":
-		return p.addVideoIndex(p1)
+		return p.addVideoIndex(p1, ext)
 	}
 	return nil
 }
 
 // 添加视频
-func (p *Photo) addVideoIndex(p1 string) error {
+func (p *Photo) addVideoIndex(p1, ext string) error {
 	// 生成文件id
 	fileid := p.genFileID(p1)
 	// 判断是否已存在
@@ -259,6 +259,7 @@ func (p *Photo) addVideoIndex(p1 string) error {
 		Path:          p1,
 		Size:          strconv.FormatInt(info.Size(), 10),
 		FileType:      FileType_Video,
+		FileExt:       ext,
 		LastDate:      info.ModTime().Format(time.DateTime),
 		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
 		Public:        Public_PUBLIC,
@@ -270,7 +271,7 @@ func (p *Photo) addVideoIndex(p1 string) error {
 }
 
 // 添加照片
-func (p *Photo) addImageIndex(p1 string) error {
+func (p *Photo) addImageIndex(p1, ext string) error {
 	// 生成文件id
 	fileid := p.genFileID(p1)
 	// 判断是否已存在
@@ -287,6 +288,7 @@ func (p *Photo) addImageIndex(p1 string) error {
 		Path:          p1,
 		Size:          strconv.FormatInt(info.Size(), 10),
 		FileType:      FileType_IMAGE,
+		FileExt:       ext,
 		LastDate:      info.ModTime().Format(time.DateTime),
 		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
 		Public:        Public_PUBLIC,
