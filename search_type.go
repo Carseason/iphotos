@@ -67,7 +67,6 @@ type SearchItem struct {
 	ExifMake         string `json:"exifMake,omitempty"`  //品牌
 	ExifWidth        string `json:"exifWidth,omitempty"`
 	ExifHeight       string `json:"exifHeight,omitempty"`
-	ExifLength       string `json:"exifLength,omitempty"`
 	ExifOriginalDate string `json:"exifOriginalDate,omitempty"`
 }
 

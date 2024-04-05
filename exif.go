@@ -37,7 +37,7 @@ func GetImageExif(p1 string) (*Exif, error) {
 			if v, ok := anyToInt64(tags[i].Value); ok {
 				item.ExifWidth = strconv.FormatInt(v, 10)
 			}
-		case "ImageHeight":
+		case "ImageLength":
 			if v, ok := anyToInt64(tags[i].Value); ok {
 				item.ExifHeight = strconv.FormatInt(v, 10)
 			}
@@ -48,10 +48,6 @@ func GetImageExif(p1 string) (*Exif, error) {
 		case "Make":
 			if v, ok := tags[i].Value.(string); ok {
 				item.ExifMake = v
-			}
-		case "ImageLength":
-			if v, ok := anyToInt64(tags[i].Value); ok {
-				item.ExifLength = strconv.FormatInt(v, 10)
 			}
 		case "DateTime":
 			if v, ok := tags[i].Value.(string); ok {

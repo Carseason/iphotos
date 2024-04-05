@@ -298,7 +298,6 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 		item.ExifHeight = rawExif.ExifHeight
 		item.ExifWidth = rawExif.ExifWidth
 		item.ExifModel = rawExif.ExifModel
-		item.ExifLength = rawExif.ExifLength
 		item.ExifOriginalDate = rawExif.ExifOriginalDate
 		item.ExifMake = rawExif.ExifMake
 	}
