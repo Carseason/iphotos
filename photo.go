@@ -1,7 +1,6 @@
 package iphotos
 
 import (
-	"context"
 	"errors"
 	"log"
 	"os"
@@ -26,7 +25,6 @@ type Photo struct {
 	indexing     bool //是否正在配置中
 	paths        []string
 	mx           *sync.RWMutex
-	ptx          context.Context
 }
 
 // 创建相册程序,如果有多个相册,则需要创建多个
@@ -42,7 +40,6 @@ func NewPhoto(ctx *Context, serialId string, excludeDirs, excludePaths []string)
 		excludePaths: map[string]struct{}{},
 		mx:           &sync.RWMutex{},
 		ctx:          ctx,
-		ptx:          context.Background(),
 	}
 	for _, k := range excludeDirs {
 		p.excludeDirs[k] = struct{}{}
@@ -54,7 +51,7 @@ func NewPhoto(ctx *Context, serialId string, excludeDirs, excludePaths []string)
 	return p, nil
 }
 func (p *Photo) close() {
-	p.ptx.Done()
+	p.ctx.Done()
 	p.mx.Lock()
 	defer p.mx.Unlock()
 	p.watcher.Close()
@@ -115,7 +112,7 @@ func (p *Photo) Restart() error {
 // 添加照片库路径
 // 必须是文件夹,并且监控该路径
 func (p *Photo) addPath(p1 string) error {
-	if p.ptx.Err() != nil {
+	if p.ctx.Err() != nil {
 		return errors.New("context close")
 	}
 	// 排除路径
@@ -162,6 +159,8 @@ func (p *Photo) addPath(p1 string) error {
 	}
 	return nil
 }
+
+// 监控文件
 func (p *Photo) watchFile() {
 	for {
 		select {
@@ -197,6 +196,13 @@ func (p *Photo) watchFile() {
 		}
 	}
 }
+
+// 生成文件ID
+func (p *Photo) genFileID(p1 string) (string, error) {
+	return p.ctx.GenFileID(p.serialId, p1)
+}
+
+// 创建文件
 func (p *Photo) createFile(p1 string) error {
 	//判断文件是否存在
 	info, err := os.Lstat(p1)
@@ -210,23 +216,26 @@ func (p *Photo) createFile(p1 string) error {
 	// 处理里面的视频文件
 	return p.walkPhotos(p1)
 }
+
+// 删除文件
 func (p *Photo) removeFile(p1 string) error {
-	if p.ptx.Err() != nil {
+	if p.ctx.Err() != nil {
 		return errors.New("context close")
+	}
+	fileid, err := p.genFileID(p1)
+	if err != nil {
+		return err
 	}
 	// 取消监控
 	p.watcher.Remove(p1)
 	// 从索引里删除
-	p.ctx.Search.Delete(p.genFileID(p1))
+	p.ctx.Delete(fileid)
 	return nil
-}
-func (p *Photo) genFileID(p1 string) string {
-	return GenFileID(p.serialId, toBase64(p1))
 }
 
 // 处理照片视频文件
 func (p *Photo) walkPhotos(p1 string) error {
-	if p.ptx.Err() != nil {
+	if p.ctx.Err() != nil {
 		return errors.New("context close")
 	}
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(filepath.Base(p1)), "."))
@@ -244,9 +253,12 @@ func (p *Photo) walkPhotos(p1 string) error {
 // 添加视频
 func (p *Photo) addVideoIndex(p1, ext string) error {
 	// 生成文件id
-	fileid := p.genFileID(p1)
+	fileid, err := p.genFileID(p1)
+	if err != nil {
+		return err
+	}
 	// 判断是否已存在
-	if ok := p.ctx.Search.Exist(fileid); ok {
+	if ok := p.ctx.Exist(fileid); ok {
 		return nil
 	}
 	info, err := os.Stat(p1)
@@ -264,18 +276,20 @@ func (p *Photo) addVideoIndex(p1, ext string) error {
 		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
 		Public:        Public_PUBLIC,
 	}
-	if err := p.addSearch(fileid, item); err != nil {
-		return err
-	}
-	return nil
+	return p.ctx.Add(map[string]*SearchItem{
+		fileid: item,
+	})
 }
 
 // 添加照片
 func (p *Photo) addImageIndex(p1, ext string) error {
 	// 生成文件id
-	fileid := p.genFileID(p1)
+	fileid, err := p.genFileID(p1)
+	if err != nil {
+		return err
+	}
 	// 判断是否已存在
-	if ok := p.ctx.Search.Exist(fileid); ok {
+	if ok := p.ctx.Exist(fileid); ok {
 		return nil
 	}
 	info, err := os.Stat(p1)
@@ -301,53 +315,7 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 		item.ExifOriginalDate = rawExif.ExifOriginalDate
 		item.ExifMake = rawExif.ExifMake
 	}
-	return p.addSearch(fileid, item)
-}
-
-// 添加文件至索引
-func (p *Photo) addSearch(fileid string, value *SearchItem) error {
-	if p.ptx.Err() != nil {
-		return errors.New("context close")
-	}
-	return p.ctx.Search.Add(map[string]*SearchItem{
-		fileid: value,
+	return p.ctx.Add(map[string]*SearchItem{
+		fileid: item,
 	})
-}
-
-// 为文件添加标签
-func (p *Photo) AddTag(p1 string, tag string) error {
-	p.mx.Lock()
-	defer p.mx.Unlock()
-	if p.ptx.Err() != nil {
-		return errors.New("context close")
-	}
-	fileid := GenFileID(p1)
-	datas, err := p.ctx.Search.Query(RequestSearch{
-		Filters: map[string]interface{}{
-			Index_SerialId: fileid,
-		},
-	})
-	if err != nil {
-		return err
-	}
-	items := make(map[string]*SearchItem)
-	for i := 0; i < len(datas.Result); i++ {
-		isExist := false
-		tags := datas.Result[i].GetTags()
-		for j := 0; j < len(tags); j++ {
-			if tags[i] == tag {
-				isExist = true
-				break
-			}
-		}
-		if !isExist {
-			tags = append(tags, tag)
-			datas.Result[i].Tags = tags
-			items[fileid] = datas.Result[i]
-		}
-	}
-	if len(items) > 0 {
-		return p.ctx.Search.Add(items)
-	}
-	return nil
 }

@@ -3,6 +3,7 @@ package iphotos
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestPhotos(t *testing.T) {
@@ -16,7 +17,8 @@ func TestPhotos(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	datas, err := p.Search.Query(RequestSearch{
+	time.Sleep(10 * time.Second)
+	datas, err := p.Searcher().Query(RequestSearch{
 		Limit: 10,
 	})
 	if err != nil {
@@ -34,7 +36,7 @@ func TestPhotosIds(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	datas, err := p.Search.Ids(RequestSearch{})
+	datas, err := p.Searcher().Ids(RequestSearch{})
 	if err != nil {
 		t.Error(err)
 		return
@@ -55,7 +57,7 @@ func TestPhotosSorts(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	datas, err := p.Search.Query(RequestSearch{
+	datas, err := p.Searcher().Query(RequestSearch{
 		Limit: 100,
 		Sorts: []string{
 			Index_LastTimestamp,
@@ -93,7 +95,7 @@ func TestPhotosQuery(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	datas, err := p.Search.Query(RequestSearch{
+	datas, err := p.Searcher().Query(RequestSearch{
 		Limit: 10,
 		Filters: map[string]interface{}{
 			Index_SerialId: "1",

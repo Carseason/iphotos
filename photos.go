@@ -3,19 +3,20 @@ package iphotos
 import (
 	"context"
 	"errors"
+	"hash/fnv"
 	"path/filepath"
+	"strings"
 	"sync"
+
+	"github.com/sqids/sqids-go"
 )
 
 type Photos struct {
 	values map[string]*Photo
-	Search Searcher[*SearchItem, []*SearchItem]
+	search Searcher[*SearchItem, []*SearchItem]
 	path   string
 	mx     *sync.RWMutex
-}
-type Context struct {
-	context.Context
-	Search Searcher[*SearchItem, []*SearchItem]
+	sid    *sqids.Sqids
 }
 
 // 存储目录
@@ -31,30 +32,28 @@ func NewPhotos(p1 string) (*Photos, error) {
 	if err != nil {
 		return nil, err
 	}
+	sid, err := sqids.New(sqids.Options{
+		Alphabet:  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+		MinLength: 16,
+	})
+	if err != nil {
+		return nil, err
+	}
 	ipos := &Photos{
 		path:   p1,
 		values: make(map[string]*Photo),
 		mx:     &sync.RWMutex{},
-		Search: s,
+		search: s,
+		sid:    sid,
 	}
 	return ipos, nil
 }
 func (p *Photos) newContext() *Context {
 	return &Context{
-		Context: context.Background(),
-		Search:  p.Search,
+		Context:       context.Background(),
+		GenFileID:     p.GenFileID,
+		ContextSearch: p.search,
 	}
-}
-
-// 重建索引
-func (ps *Photos) ReloadIndex() error {
-	ps.mx.Lock()
-	defer ps.mx.Unlock()
-	var errs error
-	if err := ps.Search.Reload(); err != nil {
-		errs = errors.Join(errs, err)
-	}
-	return errs
 }
 
 // 添加相册
@@ -77,6 +76,8 @@ func (ps *Photos) AddPhoto(serialId, path string, excludeDirs []string, excludeP
 	ps.values[serialId] = p
 	return nil
 }
+
+// 删除相册
 func (ps *Photos) RemovePhoto(serialId string, deleteIndex bool) error {
 	ps.mx.Lock()
 	defer ps.mx.Unlock()
@@ -90,7 +91,7 @@ func (ps *Photos) RemovePhoto(serialId string, deleteIndex bool) error {
 	if deleteIndex {
 		// 每次查询30条来删除
 		for i := 0; ; i++ {
-			datas, err := ps.Search.Ids(RequestSearch{
+			datas, err := ps.search.Ids(RequestSearch{
 				Limit: 30,
 				Filters: map[string]interface{}{
 					Index_SerialId: serialId,
@@ -99,20 +100,71 @@ func (ps *Photos) RemovePhoto(serialId string, deleteIndex bool) error {
 			if err != nil || len(datas) == 0 {
 				break
 			}
-			ps.Search.Delete(datas...)
+			ps.search.Delete(datas...)
 		}
 	}
 	return nil
 }
+
+// 查询相册
 func (ps *Photos) QueryPhoto(serialId string) (*Photo, bool) {
 	ps.mx.RLock()
 	defer ps.mx.RUnlock()
 	p, ok := ps.values[serialId]
 	return p, ok
 }
+
+// 查询是否索引中
 func (ps *Photos) QueryPhotoIndexing(serialId string) bool {
 	if p, ok := ps.values[serialId]; ok {
 		return p.Indexing()
 	}
 	return false
+}
+
+func (ps *Photos) GenFileID(vs ...string) (string, error) {
+	f := fnv.New64a()
+	f.Write([]byte(strings.Join(vs, ":")))
+	return ps.sid.Encode([]uint64{
+		f.Sum64()},
+	)
+}
+
+// 为文件添加标签
+func (ps *Photos) AddTag(fid string, tag string) error {
+	ps.mx.Lock()
+	defer ps.mx.Unlock()
+	datas, err := ps.search.Query(RequestSearch{
+		Filters: map[string]interface{}{
+			Index_SerialId: fid,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	items := make(map[string]*SearchItem)
+	for i := 0; i < len(datas.Result); i++ {
+		isExist := false
+		tags := datas.Result[i].GetTags()
+		for j := 0; j < len(tags); j++ {
+			if tags[i] == tag {
+				isExist = true
+				break
+			}
+		}
+		if !isExist {
+			tags = append(tags, tag)
+			datas.Result[i].Tags = tags
+			items[fid] = datas.Result[i]
+		}
+	}
+	if len(items) > 0 {
+		return ps.search.Add(items)
+	}
+	return nil
+}
+
+// 只暴露部分搜索接口给业务
+func (ps *Photos) Searcher() ContextSearch[*SearchItem, []*SearchItem] {
+	return ps.search
 }

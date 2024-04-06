@@ -4,10 +4,8 @@ go 1.21.4
 
 require (
 	github.com/blevesearch/bleve/v2 v2.4.0
-	github.com/disintegration/imaging v1.6.2
 	github.com/dsoprea/go-exif/v3 v3.0.1
 	github.com/fsnotify/fsnotify v1.7.0
-	github.com/rivo/duplo v0.0.0-20220703183130-751e882e6b83
 )
 
 require (
@@ -38,9 +36,8 @@ require (
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/json-iterator/go v0.0.0-20171115153421-f7279a603ede // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
-	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
+	github.com/sqids/sqids-go v0.4.1
 	go.etcd.io/bbolt v1.3.7 // indirect
-	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8 // indirect
 	golang.org/x/net v0.0.0-20221002022538-bcab6841153b // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
