@@ -30,6 +30,7 @@ type RequestSearch struct {
 	Limit   int64
 	// Filter: "id > 1 AND genres = Action",
 	Filters map[string]interface{}
+	Ids     []string
 	Sorts   []string
 	// 倒叙
 	Explain bool

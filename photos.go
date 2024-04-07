@@ -3,9 +3,9 @@ package iphotos
 import (
 	"context"
 	"errors"
-	"hash/fnv"
+	"log/slog"
+	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/sqids/sqids-go"
@@ -17,6 +17,7 @@ type Photos struct {
 	path   string
 	mx     *sync.RWMutex
 	sid    *sqids.Sqids
+	loger  *slog.Logger
 }
 
 // 存储目录
@@ -33,7 +34,7 @@ func NewPhotos(p1 string) (*Photos, error) {
 		return nil, err
 	}
 	sid, err := sqids.New(sqids.Options{
-		Alphabet:  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+		Alphabet:  alphabetString,
 		MinLength: 16,
 	})
 	if err != nil {
@@ -45,6 +46,7 @@ func NewPhotos(p1 string) (*Photos, error) {
 		mx:     &sync.RWMutex{},
 		search: s,
 		sid:    sid,
+		loger:  slog.New(slog.NewTextHandler(os.Stderr, nil)),
 	}
 	return ipos, nil
 }
@@ -122,49 +124,50 @@ func (ps *Photos) QueryPhotoIndexing(serialId string) bool {
 	return false
 }
 
+// serialId,path
 func (ps *Photos) GenFileID(vs ...string) (string, error) {
-	f := fnv.New64a()
-	f.Write([]byte(strings.Join(vs, ":")))
-	return ps.sid.Encode([]uint64{
-		f.Sum64()},
-	)
+	n := len(vs)
+	fids := make([]uint64, 0, n)
+	for i := 0; i < n; i++ {
+		fids = append(fids, GenFnvID(vs[i]))
+	}
+	return ps.sid.Encode(fids)
 }
 
-// 为文件添加标签
-func (ps *Photos) AddTag(fid string, tag string) error {
+// 只暴露部分搜索接口给业务
+func (ps *Photos) Searcher() ContextSearch[*SearchItem, []*SearchItem] {
+	return ps.search
+}
+
+func (ps *Photos) SetLoger(loger *slog.Logger) error {
+	if loger == nil {
+		return errors.New("not found loger")
+	}
+	ps.loger = loger
+	return nil
+}
+
+// 复制数据
+func (ps *Photos) CopyData(fids []string, serialId string) error {
 	ps.mx.Lock()
 	defer ps.mx.Unlock()
 	datas, err := ps.search.Query(RequestSearch{
-		Filters: map[string]interface{}{
-			Index_SerialId: fid,
-		},
+		Ids: fids,
 	})
 	if err != nil {
 		return err
 	}
 	items := make(map[string]*SearchItem)
 	for i := 0; i < len(datas.Result); i++ {
-		isExist := false
-		tags := datas.Result[i].GetTags()
-		for j := 0; j < len(tags); j++ {
-			if tags[i] == tag {
-				isExist = true
-				break
-			}
+		v := datas.Result[i]
+		v.SerialId = serialId
+		v.ID = ""
+		id, err := ps.GenFileID(serialId, v.Path)
+		if err != nil {
+			return err
 		}
-		if !isExist {
-			tags = append(tags, tag)
-			datas.Result[i].Tags = tags
-			items[fid] = datas.Result[i]
-		}
+		items[id] = v
 	}
-	if len(items) > 0 {
-		return ps.search.Add(items)
-	}
+	ps.search.Add(items)
 	return nil
-}
-
-// 只暴露部分搜索接口给业务
-func (ps *Photos) Searcher() ContextSearch[*SearchItem, []*SearchItem] {
-	return ps.search
 }

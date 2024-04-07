@@ -114,6 +114,12 @@ func (b *Bleve[T, TS]) Delete(keys ...string) error {
 }
 
 func (b *Bleve[T, TS]) genQuery(req RequestSearch) *bleve.SearchRequest {
+	if n := len(req.Ids); n > 0 {
+		qry := bleve.NewDocIDQuery(req.Ids)
+		qs := bleve.NewConjunctionQuery(qry)
+		req := bleve.NewSearchRequestOptions(qs, n, 0, req.Explain)
+		return req
+	}
 	var q []query.Query
 	keyword := strings.TrimSpace(req.Keyword)
 	if len(keyword) == 0 {
@@ -129,7 +135,6 @@ func (b *Bleve[T, TS]) genQuery(req RequestSearch) *bleve.SearchRequest {
 			q = append(q, req)
 		}
 	}
-
 	qs := query.NewConjunctionQuery(q)
 	return bleve.NewSearchRequestOptions(qs, int(req.Limit), int(req.Offset), req.Explain) //搜索模板，数量，开始，正反排序
 }

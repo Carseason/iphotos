@@ -25,6 +25,7 @@ type Photo struct {
 	indexing     bool //是否正在配置中
 	paths        []string
 	mx           *sync.RWMutex
+	total        int64 //统计数量
 }
 
 // 创建相册程序,如果有多个相册,则需要创建多个
@@ -54,10 +55,14 @@ func (p *Photo) close() {
 	p.ctx.Done()
 	p.mx.Lock()
 	defer p.mx.Unlock()
+	p.total = 0
 	p.watcher.Close()
 }
 func (p *Photo) Indexing() bool {
 	return p.indexing
+}
+func (p *Photo) Total() int64 {
+	return p.total
 }
 func (p *Photo) AddPATH(p1 string) error {
 	p.mx.Lock()
@@ -276,6 +281,7 @@ func (p *Photo) addVideoIndex(p1, ext string) error {
 		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
 		Public:        Public_PUBLIC,
 	}
+	p.total++
 	return p.ctx.Add(map[string]*SearchItem{
 		fileid: item,
 	})
@@ -315,6 +321,7 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 		item.ExifOriginalDate = rawExif.ExifOriginalDate
 		item.ExifMake = rawExif.ExifMake
 	}
+	p.total++
 	return p.ctx.Add(map[string]*SearchItem{
 		fileid: item,
 	})
