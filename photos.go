@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-
-	"github.com/sqids/sqids-go"
 )
 
 type Photos struct {
@@ -16,7 +14,6 @@ type Photos struct {
 	search Searcher[*SearchItem, []*SearchItem]
 	path   string
 	mx     *sync.RWMutex
-	sid    *sqids.Sqids
 	loger  *slog.Logger
 }
 
@@ -26,17 +23,19 @@ func NewPhotos(p1 string) (*Photos, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := mkdirAll(p1); err != nil {
-		return nil, err
+	if info, err := os.Stat(p1); err != nil {
+		//判断文件夹是否存在
+		if os.IsNotExist(err) {
+			//创建该文件夹
+			err = os.MkdirAll(p1, os.ModePerm)
+		}
+		if err != nil {
+			return nil, err
+		}
+	} else if !info.IsDir() {
+		return nil, errors.New("path is no dir")
 	}
 	s, err := NewSearch(p1, IndexPropertys, IndexSorts)
-	if err != nil {
-		return nil, err
-	}
-	sid, err := sqids.New(sqids.Options{
-		Alphabet:  alphabetString,
-		MinLength: 16,
-	})
 	if err != nil {
 		return nil, err
 	}
@@ -45,15 +44,26 @@ func NewPhotos(p1 string) (*Photos, error) {
 		values: make(map[string]*Photo),
 		mx:     &sync.RWMutex{},
 		search: s,
-		sid:    sid,
 		loger:  slog.New(slog.NewTextHandler(os.Stderr, nil)),
 	}
 	return ipos, nil
 }
+
+// 覆盖日志接口
+func (ps *Photos) SetLoger(loger *slog.Logger) error {
+	if loger == nil {
+		return errors.New("not found loger")
+	}
+	ps.loger = loger
+	return nil
+}
+
+// 创建被 photo 调用的context
 func (p *Photos) newContext() *Context {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Context{
-		Context:       context.Background(),
-		GenFileID:     p.GenFileID,
+		Context:       ctx,
+		cancel:        cancel,
 		ContextSearch: p.search,
 	}
 }
@@ -62,6 +72,7 @@ func (p *Photos) newContext() *Context {
 func (ps *Photos) AddPhoto(serialId, path string, excludeDirs []string, excludePaths []string) error {
 	ps.mx.Lock()
 	defer ps.mx.Unlock()
+	// 如果已经存在了
 	if _, ok := ps.values[serialId]; ok {
 		return errors.New("serialId existed")
 	}
@@ -87,14 +98,16 @@ func (ps *Photos) RemovePhoto(serialId string, deleteIndex bool) error {
 	if !ok {
 		return errors.New("serialId not found photo")
 	}
+	// 结束实例
 	p.close()
+	// 删除实例
 	delete(ps.values, serialId)
 	// 删除索引
 	if deleteIndex {
-		// 每次查询30条来删除
+		// 每次查询100条来删除
 		for i := 0; ; i++ {
 			datas, err := ps.search.Ids(RequestSearch{
-				Limit: 30,
+				Limit: 100,
 				Filters: map[string]interface{}{
 					Index_SerialId: serialId,
 				},
@@ -116,7 +129,6 @@ func (ps *Photos) QueryPhoto(serialId string) (*Photo, bool) {
 	return p, ok
 }
 
-// 查询是否索引中
 func (ps *Photos) QueryPhotoIndexing(serialId string) bool {
 	if p, ok := ps.values[serialId]; ok {
 		return p.Indexing()
@@ -124,50 +136,7 @@ func (ps *Photos) QueryPhotoIndexing(serialId string) bool {
 	return false
 }
 
-// serialId,path
-func (ps *Photos) GenFileID(vs ...string) (string, error) {
-	n := len(vs)
-	fids := make([]uint64, 0, n)
-	for i := 0; i < n; i++ {
-		fids = append(fids, GenFnvID(vs[i]))
-	}
-	return ps.sid.Encode(fids)
-}
-
 // 只暴露部分搜索接口给业务
 func (ps *Photos) Searcher() ContextSearch[*SearchItem, []*SearchItem] {
 	return ps.search
-}
-
-func (ps *Photos) SetLoger(loger *slog.Logger) error {
-	if loger == nil {
-		return errors.New("not found loger")
-	}
-	ps.loger = loger
-	return nil
-}
-
-// 复制数据
-func (ps *Photos) CopyData(fids []string, serialId string) error {
-	ps.mx.Lock()
-	defer ps.mx.Unlock()
-	datas, err := ps.search.Query(RequestSearch{
-		Ids: fids,
-	})
-	if err != nil {
-		return err
-	}
-	items := make(map[string]*SearchItem)
-	for i := 0; i < len(datas.Result); i++ {
-		v := datas.Result[i]
-		v.SerialId = serialId
-		v.ID = ""
-		id, err := ps.GenFileID(serialId, v.Path)
-		if err != nil {
-			return err
-		}
-		items[id] = v
-	}
-	ps.search.Add(items)
-	return nil
 }

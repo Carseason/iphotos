@@ -2,6 +2,7 @@ package iphotos
 
 import (
 	"errors"
+	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -21,11 +22,11 @@ type Photo struct {
 	excludeDirs map[string]struct{}
 	// 排除的路径
 	excludePaths map[string]struct{}
-	ctx          *Context
-	indexing     bool //是否正在配置中
-	paths        []string
-	mx           *sync.RWMutex
-	total        int64 //统计数量
+	// 从 photos 传来的
+	ctx *Context
+	mx  *sync.RWMutex
+	//是否正在配置中
+	indexing bool
 }
 
 // 创建相册程序,如果有多个相册,则需要创建多个
@@ -51,19 +52,22 @@ func NewPhoto(ctx *Context, serialId string, excludeDirs, excludePaths []string)
 	go p.watchFile()
 	return p, nil
 }
+
+// 关闭实例
 func (p *Photo) close() {
-	p.ctx.Done()
+	p.ctx.cancel()
 	p.mx.Lock()
 	defer p.mx.Unlock()
-	p.total = 0
 	p.watcher.Close()
+	p.indexing = false
 }
+
+// 索引状态,不是强业务,不加锁
 func (p *Photo) Indexing() bool {
 	return p.indexing
 }
-func (p *Photo) Total() int64 {
-	return p.total
-}
+
+// 添加路径, 创建了实例后使用该方法添加路径
 func (p *Photo) AddPATH(p1 string) error {
 	p.mx.Lock()
 	defer p.mx.Unlock()
@@ -76,49 +80,25 @@ func (p *Photo) AddPATH(p1 string) error {
 	} else if !info.IsDir() {
 		return errors.New("not found dir")
 	}
-	//
-	for i := 0; i < len(p.paths); i++ {
-		if p.paths[i] == p1 {
-			return nil
-		}
-	}
-	p.paths = append(p.paths, p1)
 	// 避免堵塞
 	go p.startIndex(p1)
 	return nil
 }
-func (p *Photo) startIndex(p1 string) {
-	p.mx.Lock()
-	defer func() {
-		p.indexing = false
-		p.mx.Unlock()
-	}()
-	p.indexing = true
-	p.addPath(p1)
-}
 
-// 重新开始索引
-func (p *Photo) Restart() error {
+// 开始索引,尽量使用异步开始,并使用 indexing 来判断是否完成
+func (p *Photo) startIndex(p1 string) {
 	p.mx.Lock()
 	defer p.mx.Unlock()
 	p.indexing = true
-	defer func() {
-		p.indexing = false
-	}()
-	var errs error
-	for i := 0; i < len(p.paths); i++ {
-		if err := p.addPath(p.paths[i]); err != nil {
-			errs = errors.Join(errs, err)
-		}
-	}
-	return errs
+	p.addPath(p1)
+	p.indexing = false
 }
 
 // 添加照片库路径
 // 必须是文件夹,并且监控该路径
 func (p *Photo) addPath(p1 string) error {
 	if p.ctx.Err() != nil {
-		return errors.New("context close")
+		return ErrContextClose
 	}
 	// 排除路径
 	if _, ok := p.excludePaths[p1]; ok {
@@ -128,6 +108,7 @@ func (p *Photo) addPath(p1 string) error {
 	if _, ok := p.excludeDirs[filepath.Base(p1)]; ok {
 		return errors.New("exclude dirName")
 	}
+	// 监控文件夹至
 	if err := p.watcher.Add(p1); err != nil {
 		return err
 	}
@@ -140,26 +121,26 @@ func (p *Photo) addPath(p1 string) error {
 	for {
 		// 每次只读10条
 		files, err := f.Readdir(10)
+		// 先处理照片在处理文件夹
+		if n := len(files); n > 0 {
+			for i := 0; i < n; i++ {
+				p2 := filepath.Join(p1, files[i].Name())
+				if files[i].IsDir() {
+					dirs = append(dirs, p2)
+				} else {
+					p.walkPhotos(p2)
+				}
+			}
+		}
 		if err != nil {
 			break
 		}
-		n := len(files)
-		// 先处理照片在处理文件夹
-		for i := 0; i < n; i++ {
-			p2 := filepath.Join(p1, files[i].Name())
-			if files[i].IsDir() {
-				dirs = append(dirs, p2)
-			} else {
-				p.walkPhotos(p2)
-			}
-		}
 	}
 	// 已经处理完照片文件里,手动关闭当前文件
-	// 再开始处理文件夹
+	// 再开始处理文件夹，避免长期占着文件句柄
 	f.Close()
-	// 处理文件夹
-	ds := len(dirs)
-	for i := 0; i < ds; i++ {
+	// 处理文件夹,一层一层处理
+	for i := 0; i < len(dirs); i++ {
 		p.addPath(dirs[i])
 	}
 	return nil
@@ -174,6 +155,10 @@ func (p *Photo) watchFile() {
 				return
 			}
 			if err != nil {
+				// 已经关闭了
+				if errors.Is(err, fsnotify.ErrClosed) {
+					return
+				}
 				log.Println("photos.watch:", err)
 			}
 		case event, ok := <-p.watcher.Events:
@@ -181,10 +166,6 @@ func (p *Photo) watchFile() {
 				return
 			}
 			switch event.Op {
-			//写入内容
-			case fsnotify.Write:
-			//模式
-			case fsnotify.Chmod:
 			//创建
 			case fsnotify.Create:
 				p.createFile(event.Name)
@@ -202,11 +183,6 @@ func (p *Photo) watchFile() {
 	}
 }
 
-// 生成文件ID
-func (p *Photo) genFileID(p1 string) (string, error) {
-	return p.ctx.GenFileID(p.serialId, p1)
-}
-
 // 创建文件
 func (p *Photo) createFile(p1 string) error {
 	//判断文件是否存在
@@ -214,26 +190,26 @@ func (p *Photo) createFile(p1 string) error {
 	if err != nil {
 		return err
 	}
-	//判断是否文件夹
+	//判断是否文件夹,把文件夹添加至监控
 	if info.IsDir() {
 		return p.addPath(p1)
 	}
-	// 处理里面的视频文件
+	// 如果不是文件夹,则处理该文件
 	return p.walkPhotos(p1)
 }
 
 // 删除文件
 func (p *Photo) removeFile(p1 string) error {
 	if p.ctx.Err() != nil {
-		return errors.New("context close")
-	}
-	fileid, err := p.genFileID(p1)
-	if err != nil {
-		return err
+		return ErrContextClose
 	}
 	// 取消监控
 	p.watcher.Remove(p1)
-	// 从索引里删除
+	fileid, err := GenFileID(p.serialId, p1)
+	if err != nil {
+		return err
+	}
+	// 从索引里删除该文件
 	p.ctx.Delete(fileid)
 	return nil
 }
@@ -241,7 +217,7 @@ func (p *Photo) removeFile(p1 string) error {
 // 处理照片视频文件
 func (p *Photo) walkPhotos(p1 string) error {
 	if p.ctx.Err() != nil {
-		return errors.New("context close")
+		return ErrContextClose
 	}
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(filepath.Base(p1)), "."))
 	switch ext {
@@ -249,26 +225,39 @@ func (p *Photo) walkPhotos(p1 string) error {
 	case "jpg", "gif", "png", "webp", "jpeg", "heic", "heif":
 		return p.addImageIndex(p1, ext)
 	// 视频
-	case "mp4", "mkv", "mov", "wmv", "flv", "m3u8", "ts", "avi", "webm", "avchd":
+	case "mp4", "mkv", "mov", "wmv", "flv", "avi", "webm", "avchd":
 		return p.addVideoIndex(p1, ext)
 	}
 	return nil
 }
 
-// 添加视频
-func (p *Photo) addVideoIndex(p1, ext string) error {
+// 检查文件是否已存在
+func (p *Photo) checkFile(p1 string) (string, fs.FileInfo, error) {
 	// 生成文件id
-	fileid, err := p.genFileID(p1)
+	fileid, err := GenFileID(p.serialId, p1)
 	if err != nil {
-		return err
+		return "", nil, err
 	}
 	// 判断是否已存在
 	if ok := p.ctx.Exist(fileid); ok {
-		return nil
+		return fileid, nil, nil
 	}
+	// 获取文件信息
 	info, err := os.Stat(p1)
 	if err != nil {
+		return "", nil, err
+	}
+	return fileid, info, nil
+}
+
+// 添加视频
+func (p *Photo) addVideoIndex(p1, ext string) error {
+	fileid, info, err := p.checkFile(p1)
+	if err != nil {
 		return err
+	}
+	if info == nil {
+		return nil
 	}
 	item := &SearchItem{
 		SerialId:      p.serialId,
@@ -279,9 +268,8 @@ func (p *Photo) addVideoIndex(p1, ext string) error {
 		FileExt:       ext,
 		LastDate:      info.ModTime().Format(time.DateTime),
 		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
-		Public:        Public_PUBLIC,
 	}
-	p.total++
+	// 添加至搜索引擎
 	return p.ctx.Add(map[string]*SearchItem{
 		fileid: item,
 	})
@@ -289,18 +277,12 @@ func (p *Photo) addVideoIndex(p1, ext string) error {
 
 // 添加照片
 func (p *Photo) addImageIndex(p1, ext string) error {
-	// 生成文件id
-	fileid, err := p.genFileID(p1)
+	fileid, info, err := p.checkFile(p1)
 	if err != nil {
 		return err
 	}
-	// 判断是否已存在
-	if ok := p.ctx.Exist(fileid); ok {
+	if info == nil {
 		return nil
-	}
-	info, err := os.Stat(p1)
-	if err != nil {
-		return err
 	}
 	item := &SearchItem{
 		SerialId:      p.serialId,
@@ -311,7 +293,6 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 		FileExt:       ext,
 		LastDate:      info.ModTime().Format(time.DateTime),
 		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
-		Public:        Public_PUBLIC,
 	}
 	// 处理exif
 	if rawExif, err := GetImageExif(p1); err == nil {
@@ -321,7 +302,7 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 		item.ExifOriginalDate = rawExif.ExifOriginalDate
 		item.ExifMake = rawExif.ExifMake
 	}
-	p.total++
+	// 添加至搜索引擎
 	return p.ctx.Add(map[string]*SearchItem{
 		fileid: item,
 	})

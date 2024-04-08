@@ -62,7 +62,6 @@ type SearchItem struct {
 	Tags          any    `json:"tags,omitempty"`          //用户自定义标签
 	FileType      string `json:"fileType,omitempty"`      //文件类型
 	FileExt       string `json:"fileExt,omitempty"`       //文件后缀
-	Public        string `json:"public,omitempty"`        //如果为 "1" 则是可公开的，否则是被手动隐藏了
 	//exif
 	ExifModel        string `json:"exifModel,omitempty"` //型号
 	ExifMake         string `json:"exifMake,omitempty"`  //品牌
@@ -88,13 +87,8 @@ const (
 	Index_FileExt       = "fileExt"
 	Index_Tags          = "tags"
 	Index_LastTimestamp = "lastTimestamp"
-	Index_Public        = "public"
 	Index_Model         = "exifModel"
 	Index_Make          = "exifMake"
-)
-const (
-	Public_PUBLIC = "1"
-	Public_Hidden = "0"
 )
 
 var (
@@ -106,7 +100,6 @@ var (
 		Index_FileExt,
 		Index_Tags,
 		Index_LastTimestamp,
-		Index_Public,
 		Index_Model,
 		Index_Make,
 	}

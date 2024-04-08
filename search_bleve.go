@@ -41,25 +41,27 @@ func (b *Bleve[T, TS]) createIndex() error {
 	// 索引文件已存在
 	if _, err = os.Stat(filepath.Join(b.absPath, "index_meta.json")); err == nil {
 		b.index, err = bleve.Open(b.absPath)
-	} else {
-		// buildMapping 配置功能
-		indexMapping := func() mapping.IndexMapping {
-			fileStatMapping := bleve.NewDocumentMapping()
-			for i := range b.propertys {
-				v := bleve.NewTextFieldMapping()
-				fileStatMapping.AddFieldMappingsAt(b.propertys[i], v)
-			}
-			mapping := bleve.NewIndexMapping()
-			mapping.DefaultMapping = fileStatMapping
-			return mapping
-		}()
-		b.index, err = bleve.New(b.absPath, indexMapping)
+		return err
 	}
+	// buildMapping 配置功能
+	indexMapping := func() mapping.IndexMapping {
+		fileStatMapping := bleve.NewDocumentMapping()
+		for i := range b.propertys {
+			v := bleve.NewTextFieldMapping()
+			fileStatMapping.AddFieldMappingsAt(b.propertys[i], v)
+		}
+		mapping := bleve.NewIndexMapping()
+		mapping.DefaultMapping = fileStatMapping
+		return mapping
+	}()
+	// 初始化
+	b.index, err = bleve.New(b.absPath, indexMapping)
 	return err
 }
 
 // 删除索引
 func (b *Bleve[T, TS]) removeIndex() error {
+	// 关闭搜索
 	if err := b.index.Close(); err != nil {
 		return err
 	}
@@ -213,7 +215,6 @@ func (b *Bleve[T, TS]) Ids(req RequestSearch) ([]string, error) {
 	}
 	return datas, nil
 }
-
 func (b *Bleve[T, TS]) Count() (int64, error) {
 	b.mx.RLock()
 	defer b.mx.RUnlock()

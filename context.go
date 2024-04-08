@@ -1,11 +1,14 @@
 package iphotos
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 type Context struct {
 	context.Context
+	cancel context.CancelFunc
 	ContextSearch[*SearchItem, []*SearchItem]
-	GenFileID func(...string) (string, error)
 }
 
 type ContextSearch[T SearchT, TS SearchTS] interface {
@@ -15,3 +18,7 @@ type ContextSearch[T SearchT, TS SearchTS] interface {
 	Query(RequestSearch) (*ResponseSearch[TS], error)
 	Ids(RequestSearch) ([]string, error)
 }
+
+var (
+	ErrContextClose = errors.New("context close")
+)
