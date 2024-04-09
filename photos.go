@@ -90,7 +90,7 @@ func (ps *Photos) AddPhoto(serialId, path string, cfs ...*PhotoConfig) error {
 			}
 		}
 	}
-	cf.excludePaths = append(cf.excludePaths, ps.path)
+	cf.ExcludePaths = append(cf.ExcludePaths, ps.path)
 	ctx := ps.newContext()
 	p, err := NewPhoto(ctx, serialId, cf)
 	if err != nil {

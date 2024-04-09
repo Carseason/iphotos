@@ -35,28 +35,28 @@ type Photo struct {
 }
 type PhotoConfig struct {
 	// 要排除的文件夹
-	excludeDirs []string
+	ExcludeDirs []string
 	// 要排除的路径
-	excludePaths []string
+	ExcludePaths []string
 	// 是否检索exif
-	checkExif bool
+	CheckExif bool
 	// 是否检索hash相似
-	checkHash bool
+	CheckHash bool
 	// 是否识别人脸
-	checkFace bool
+	CheckFace bool
 }
 
-func (p *PhotoConfig) ExcludeDirs() map[string]struct{} {
+func (p *PhotoConfig) getExcludeDirs() map[string]struct{} {
 	excludeDirs := make(map[string]struct{})
-	for _, k := range p.excludeDirs {
+	for _, k := range p.ExcludeDirs {
 		excludeDirs[k] = struct{}{}
 	}
 	return excludeDirs
 }
 
-func (p *PhotoConfig) ExcludePaths() map[string]struct{} {
+func (p *PhotoConfig) getExcludePaths() map[string]struct{} {
 	excludePaths := make(map[string]struct{})
-	for _, k := range p.excludePaths {
+	for _, k := range p.ExcludePaths {
 		excludePaths[k] = struct{}{}
 	}
 	return excludePaths
@@ -75,11 +75,11 @@ func NewPhoto(ctx *Context, serialId string, cf *PhotoConfig) (*Photo, error) {
 		ctx:      ctx,
 	}
 	if cf != nil {
-		p.excludeDirs = cf.ExcludeDirs()
-		p.excludePaths = cf.ExcludePaths()
-		p.checkFace = cf.checkFace
-		p.checkHash = cf.checkHash
-		p.checkExif = cf.checkExif
+		p.excludeDirs = cf.getExcludeDirs()
+		p.excludePaths = cf.getExcludePaths()
+		p.checkFace = cf.CheckFace
+		p.checkHash = cf.CheckHash
+		p.checkExif = cf.CheckExif
 	}
 	go p.watchFile()
 	return p, nil
