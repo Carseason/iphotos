@@ -74,17 +74,25 @@ func (p *Photos) newContext() *Context {
 }
 
 // 添加相册
-func (ps *Photos) AddPhoto(serialId, path string, excludeDirs []string, excludePaths []string) error {
+func (ps *Photos) AddPhoto(serialId, path string, cfs ...*PhotoConfig) error {
 	ps.mx.Lock()
 	defer ps.mx.Unlock()
 	// 如果已经存在了
 	if _, ok := ps.values[serialId]; ok {
 		return errors.New("serialId existed")
 	}
-	// 排除本身存储的路径
-	excludePaths = append(excludePaths, ps.path)
-	//
-	p, err := NewPhoto(ps.newContext(), serialId, excludeDirs, excludePaths)
+	cf := &PhotoConfig{}
+	if n := len(cfs); n > 0 {
+		for i := 0; i < n; i++ {
+			if cfs[i] != nil {
+				cf = cfs[i]
+				break
+			}
+		}
+	}
+	cf.excludePaths = append(cf.excludePaths, ps.path)
+	ctx := ps.newContext()
+	p, err := NewPhoto(ctx, serialId, cf)
 	if err != nil {
 		return err
 	}

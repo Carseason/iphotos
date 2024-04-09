@@ -12,7 +12,7 @@ func TestPhotos(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = p.AddPhoto("1", "./", []string{}, []string{})
+	err = p.AddPhoto("1", "./", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -52,7 +52,7 @@ func TestPhotosSorts(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = p.AddPhoto("1", "./tmps", []string{}, []string{})
+	err = p.AddPhoto("1", "./tmps", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -78,7 +78,7 @@ func TestPhotosRemovePhoto(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = p.AddPhoto("1", "./tmps", []string{}, []string{})
+	err = p.AddPhoto("1", "./tmps", nil)
 	if err != nil {
 		t.Error(err)
 		return

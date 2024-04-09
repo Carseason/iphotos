@@ -28,28 +28,58 @@ type Photo struct {
 	ctx *Context
 	mx  *sync.RWMutex
 	//是否正在配置中
-	indexing bool
+	indexing  bool
+	checkHash bool
+	checkFace bool
+	checkExif bool
+}
+type PhotoConfig struct {
+	// 要排除的文件夹
+	excludeDirs []string
+	// 要排除的路径
+	excludePaths []string
+	// 是否检索exif
+	checkExif bool
+	// 是否检索hash相似
+	checkHash bool
+	// 是否识别人脸
+	checkFace bool
+}
+
+func (p *PhotoConfig) ExcludeDirs() map[string]struct{} {
+	excludeDirs := make(map[string]struct{})
+	for _, k := range p.excludeDirs {
+		excludeDirs[k] = struct{}{}
+	}
+	return excludeDirs
+}
+
+func (p *PhotoConfig) ExcludePaths() map[string]struct{} {
+	excludePaths := make(map[string]struct{})
+	for _, k := range p.excludePaths {
+		excludePaths[k] = struct{}{}
+	}
+	return excludePaths
 }
 
 // 创建相册程序,如果有多个相册,则需要创建多个
-func NewPhoto(ctx *Context, serialId string, excludeDirs, excludePaths []string) (*Photo, error) {
+func NewPhoto(ctx *Context, serialId string, cf *PhotoConfig) (*Photo, error) {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
 	p := &Photo{
-		watcher:      w,
-		serialId:     serialId,
-		excludeDirs:  map[string]struct{}{},
-		excludePaths: map[string]struct{}{},
-		mx:           &sync.RWMutex{},
-		ctx:          ctx,
+		watcher:  w,
+		serialId: serialId,
+		mx:       &sync.RWMutex{},
+		ctx:      ctx,
 	}
-	for _, k := range excludeDirs {
-		p.excludeDirs[k] = struct{}{}
-	}
-	for _, k := range excludePaths {
-		p.excludePaths[k] = struct{}{}
+	if cf != nil {
+		p.excludeDirs = cf.ExcludeDirs()
+		p.excludePaths = cf.ExcludePaths()
+		p.checkFace = cf.checkFace
+		p.checkHash = cf.checkHash
+		p.checkExif = cf.checkExif
 	}
 	go p.watchFile()
 	return p, nil
@@ -215,7 +245,7 @@ func (p *Photo) removeFile(p1 string) error {
 	}
 	// 从索引里删除该文件
 	p.ctx.Searcher.Delete(fileid)
-	p.ctx.Storer.Delete(p1)
+	p.ctx.Storer.Delete(fileid)
 	return nil
 }
 
@@ -302,21 +332,25 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 		Status:        Status_Public,
 	}
 	// 处理exif
-	if rawExif, err := GetImageExif(p1); err == nil {
-		item.ExifHeight = rawExif.ExifHeight
-		item.ExifWidth = rawExif.ExifWidth
-		item.ExifModel = rawExif.ExifModel
-		item.ExifOriginalDate = rawExif.ExifOriginalDate
-		item.ExifMake = rawExif.ExifMake
+	if p.checkExif {
+		if rawExif, err := GetImageExif(p1); err == nil {
+			item.ExifHeight = rawExif.ExifHeight
+			item.ExifWidth = rawExif.ExifWidth
+			item.ExifModel = rawExif.ExifModel
+			item.ExifOriginalDate = rawExif.ExifOriginalDate
+			item.ExifMake = rawExif.ExifMake
+		}
 	}
 	// 存在人脸
-	if ok, _ := face.IsFace(p1); ok {
-		item.Identify = Identify_Face
+	if p.checkFace {
+		if ok, _ := face.IsFace(p1); ok {
+			item.Identify = Identify_Face
+		}
 	}
 	// 相似图片
-	if !p.ctx.Storer.Has(p1) {
-		if hash, _, err := store.CreateHash(p1); err == nil {
-			p.ctx.Storer.Add(p1, *hash)
+	if p.checkHash && !p.ctx.Storer.Has(fileid) {
+		if hash, _, err := store.CreateHash(p1); err == nil && hash != nil {
+			p.ctx.Storer.Add(fileid, *hash)
 		}
 	}
 	// 添加至搜索引擎
