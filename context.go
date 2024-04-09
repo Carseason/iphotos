@@ -3,12 +3,15 @@ package iphotos
 import (
 	"context"
 	"errors"
+
+	"github.com/carseason/iphotos/store"
 )
 
 type Context struct {
 	context.Context
-	cancel context.CancelFunc
-	ContextSearch[*SearchItem, []*SearchItem]
+	cancel   context.CancelFunc
+	Searcher ContextSearch[*SearchItem, []*SearchItem]
+	Storer   *store.Storer
 }
 
 type ContextSearch[T SearchT, TS SearchTS] interface {
@@ -17,6 +20,7 @@ type ContextSearch[T SearchT, TS SearchTS] interface {
 	Delete(...string) error
 	Query(RequestSearch) (*ResponseSearch[TS], error)
 	Ids(RequestSearch) ([]string, error)
+	Hidden(ids ...string) error
 }
 
 var (

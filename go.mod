@@ -9,6 +9,11 @@ require (
 )
 
 require (
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
+	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5 // indirect
+)
+
+require (
 	github.com/RoaringBitmap/roaring v1.2.3 // indirect
 	github.com/bits-and-blooms/bitset v1.2.0 // indirect
 	github.com/blevesearch/bleve_index_api v1.1.6 // indirect
@@ -28,14 +33,17 @@ require (
 	github.com/blevesearch/zapx/v14 v14.3.10 // indirect
 	github.com/blevesearch/zapx/v15 v15.3.13 // indirect
 	github.com/blevesearch/zapx/v16 v16.0.12 // indirect
+	github.com/disintegration/imaging v1.6.2
 	github.com/dsoprea/go-logging v0.0.0-20200710184922-b02d349568dd // indirect
 	github.com/dsoprea/go-utility/v2 v2.0.0-20221003172846-a3e1774ef349 // indirect
+	github.com/esimov/pigo v1.4.6
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/golang/geo v0.0.0-20210211234256-740aa86cb551 // indirect
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/json-iterator/go v0.0.0-20171115153421-f7279a603ede // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
+	github.com/rivo/duplo v0.0.0-20220703183130-751e882e6b83
 	github.com/sqids/sqids-go v0.4.1
 	go.etcd.io/bbolt v1.3.7 // indirect
 	golang.org/x/net v0.0.0-20221002022538-bcab6841153b // indirect

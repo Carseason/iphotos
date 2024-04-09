@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/carseason/iphotos/store"
 )
 
 type Photos struct {
@@ -15,6 +17,7 @@ type Photos struct {
 	path   string
 	mx     *sync.RWMutex
 	loger  *slog.Logger
+	Storer *store.Storer
 }
 
 // 存储目录
@@ -45,6 +48,7 @@ func NewPhotos(p1 string) (*Photos, error) {
 		mx:     &sync.RWMutex{},
 		search: s,
 		loger:  slog.New(slog.NewTextHandler(os.Stderr, nil)),
+		Storer: store.NewStore(p1),
 	}
 	return ipos, nil
 }
@@ -62,9 +66,10 @@ func (ps *Photos) SetLoger(loger *slog.Logger) error {
 func (p *Photos) newContext() *Context {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Context{
-		Context:       ctx,
-		cancel:        cancel,
-		ContextSearch: p.search,
+		Context:  ctx,
+		cancel:   cancel,
+		Searcher: p.search,
+		Storer:   p.Storer,
 	}
 }
 

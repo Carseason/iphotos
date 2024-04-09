@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/carseason/iphotos/face"
+	"github.com/carseason/iphotos/store"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -179,6 +181,8 @@ func (p *Photo) watchFile() {
 			case fsnotify.Remove | fsnotify.Rename:
 				p.removeFile(event.Name)
 			}
+		case <-p.ctx.Done():
+			return
 		}
 	}
 }
@@ -210,7 +214,8 @@ func (p *Photo) removeFile(p1 string) error {
 		return err
 	}
 	// 从索引里删除该文件
-	p.ctx.Delete(fileid)
+	p.ctx.Searcher.Delete(fileid)
+	p.ctx.Storer.Delete(p1)
 	return nil
 }
 
@@ -239,7 +244,7 @@ func (p *Photo) checkFile(p1 string) (string, fs.FileInfo, error) {
 		return "", nil, err
 	}
 	// 判断是否已存在
-	if ok := p.ctx.Exist(fileid); ok {
+	if ok := p.ctx.Searcher.Exist(fileid); ok {
 		return fileid, nil, nil
 	}
 	// 获取文件信息
@@ -268,9 +273,10 @@ func (p *Photo) addVideoIndex(p1, ext string) error {
 		FileExt:       ext,
 		LastDate:      info.ModTime().Format(time.DateTime),
 		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
+		Status:        Status_Public,
 	}
 	// 添加至搜索引擎
-	return p.ctx.Add(map[string]*SearchItem{
+	return p.ctx.Searcher.Add(map[string]*SearchItem{
 		fileid: item,
 	})
 }
@@ -293,6 +299,7 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 		FileExt:       ext,
 		LastDate:      info.ModTime().Format(time.DateTime),
 		LastTimestamp: strconv.FormatInt(info.ModTime().Unix(), 10),
+		Status:        Status_Public,
 	}
 	// 处理exif
 	if rawExif, err := GetImageExif(p1); err == nil {
@@ -302,8 +309,18 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 		item.ExifOriginalDate = rawExif.ExifOriginalDate
 		item.ExifMake = rawExif.ExifMake
 	}
+	// 存在人脸
+	if ok, _ := face.IsFace(p1); ok {
+		item.Identify = Identify_Face
+	}
+	// 相似图片
+	if !p.ctx.Storer.Has(p1) {
+		if hash, _, err := store.CreateHash(p1); err == nil {
+			p.ctx.Storer.Add(p1, *hash)
+		}
+	}
 	// 添加至搜索引擎
-	return p.ctx.Add(map[string]*SearchItem{
+	return p.ctx.Searcher.Add(map[string]*SearchItem{
 		fileid: item,
 	})
 }

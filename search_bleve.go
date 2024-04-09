@@ -114,7 +114,6 @@ func (b *Bleve[T, TS]) Delete(keys ...string) error {
 	}
 	return nil
 }
-
 func (b *Bleve[T, TS]) genQuery(req RequestSearch) *bleve.SearchRequest {
 	if n := len(req.Ids); n > 0 {
 		qry := bleve.NewDocIDQuery(req.Ids)
@@ -226,4 +225,21 @@ func (b *Bleve[T, TS]) Count() (int64, error) {
 		return 0, err
 	}
 	return int64(res.Total), nil
+}
+func (b *Bleve[T, TS]) Hidden(ids ...string) error {
+	b.mx.RLock()
+	defer b.mx.RUnlock()
+	qry := bleve.NewDocIDQuery(ids)
+	req := bleve.NewSearchRequestOptions(qry, len(ids), 0, false)
+	req.Fields = []string{"*"} //返回所有结果字段
+	res, err := b.index.Search(req)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(res.Hits); i++ {
+		entrie := res.Hits[i].Fields
+		entrie["public"] = Status_Hidden
+		b.index.Index(res.Hits[i].ID, entrie)
+	}
+	return nil
 }

@@ -9,6 +9,7 @@ type Searcher[T SearchT, TS SearchTS] interface {
 	Delete(...string) error
 	Close() error
 	Reload() error
+	Hidden(ids ...string) error
 }
 
 // 搜索结果
@@ -62,6 +63,8 @@ type SearchItem struct {
 	Tags          any    `json:"tags,omitempty"`          //用户自定义标签
 	FileType      string `json:"fileType,omitempty"`      //文件类型
 	FileExt       string `json:"fileExt,omitempty"`       //文件后缀
+	Status        string `json:"status,omitempty"`        //1为公开,别的则为隐藏或删除了
+	Identify      string `json:"identify,omitempty"`      //图片内容类型,比如 face 为人脸
 	//exif
 	ExifModel        string `json:"exifModel,omitempty"` //型号
 	ExifMake         string `json:"exifMake,omitempty"`  //品牌
@@ -89,6 +92,18 @@ const (
 	Index_LastTimestamp = "lastTimestamp"
 	Index_Model         = "exifModel"
 	Index_Make          = "exifMake"
+	Index_Status        = "status"
+	Index_Identify      = "identify"
+	Index_Path          = "path"
+)
+const (
+	// 数据状态
+	Status_Public = "1" //公开
+	Status_Hidden = "0" //移除
+	// 数据内容识别
+	Identify_Face      = "face"      //人脸
+	Identify_Thing     = "thing"     //物品
+	Identify_Landscape = "landscape" //风景
 )
 
 var (
@@ -102,11 +117,15 @@ var (
 		Index_LastTimestamp,
 		Index_Model,
 		Index_Make,
+		Index_Status,
+		Index_Identify,
+		Index_Path,
 	}
 	// 用于排序
 	IndexSorts = []string{
 		Index_SerialId,
 		Index_Filename,
 		Index_LastTimestamp,
+		Index_Path,
 	}
 )
