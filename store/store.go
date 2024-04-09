@@ -126,7 +126,8 @@ func (s *Storer) Query(filePath string) []string {
 		if hash, img := duplo.CreateHash(img); img != nil {
 			datas := s.store.Query(hash)
 			for i := 0; i < len(datas); i++ {
-				if datas[i].RatioDiff < 0.1 || datas[i].Score <= 0 {
+				// 越低匹配度越高
+				if datas[i].Score <= 0 {
 					if v, ok := datas[i].ID.(string); ok {
 						paths = append(paths, v)
 					}

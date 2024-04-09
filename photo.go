@@ -123,6 +123,10 @@ func (p *Photo) startIndex(p1 string) {
 	defer p.mx.Unlock()
 	p.indexing = true
 	p.addPath(p1)
+	// 扫库完成则保存一份hash数据
+	if p.ctx.Storer != nil {
+		p.ctx.Storer.Save()
+	}
 	p.indexing = false
 }
 
