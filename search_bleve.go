@@ -238,7 +238,7 @@ func (b *Bleve[T, TS]) Hidden(ids ...string) error {
 	}
 	for i := 0; i < len(res.Hits); i++ {
 		entrie := res.Hits[i].Fields
-		entrie["public"] = Status_Hidden
+		entrie[Index_Status] = Status_Hidden
 		b.index.Index(res.Hits[i].ID, entrie)
 	}
 	return nil
