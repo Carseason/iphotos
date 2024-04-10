@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/carseason/iphotos/face"
 	"github.com/carseason/iphotos/similar"
 	"github.com/fsnotify/fsnotify"
 )
@@ -346,11 +345,11 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 		}
 	}
 	// 存在人脸
-	if p.checkFace {
-		if ok, _ := face.IsFace(p1); ok {
-			item.Identify = Identify_Face
-		}
-	}
+	// if p.checkFace {
+	// 	if ok, _ := face.IsFace(p1); ok {
+	// 		item.Identify = Identify_Face
+	// 	}
+	// }
 	// 相似图片
 	if p.checkHash && !p.ctx.Similar.Has(fileid) {
 		if hash, _, err := similar.CreateHash(p1); err == nil && hash != nil {
