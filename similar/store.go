@@ -35,7 +35,7 @@ func NewStore(path string) *Storer {
 		cancel: cancel,
 	}
 	if len(path) > 0 {
-		s.p = filepath.Join(path, "hashs")
+		s.p = filepath.Join(path, "similars")
 		s.register()
 		go s.sleep()
 	}
