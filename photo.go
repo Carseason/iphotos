@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/carseason/iphotos/face"
-	"github.com/carseason/iphotos/hashs"
+	"github.com/carseason/iphotos/similar"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -124,8 +124,8 @@ func (p *Photo) startIndex(p1 string) {
 	p.indexing = true
 	p.addPath(p1)
 	// 扫库完成则保存一份hash数据
-	if p.ctx.Hashser != nil {
-		p.ctx.Hashser.Save()
+	if p.ctx.Similar != nil {
+		p.ctx.Similar.Save()
 	}
 	p.indexing = false
 }
@@ -249,7 +249,7 @@ func (p *Photo) removeFile(p1 string) error {
 	}
 	// 从索引里删除该文件
 	p.ctx.Searcher.Delete(fileid)
-	p.ctx.Hashser.Delete(fileid)
+	p.ctx.Similar.Delete(fileid)
 	return nil
 }
 
@@ -352,9 +352,9 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 		}
 	}
 	// 相似图片
-	if p.checkHash && !p.ctx.Hashser.Has(fileid) {
-		if hash, _, err := hashs.CreateHash(p1); err == nil && hash != nil {
-			p.ctx.Hashser.Add(fileid, *hash)
+	if p.checkHash && !p.ctx.Similar.Has(fileid) {
+		if hash, _, err := similar.CreateHash(p1); err == nil && hash != nil {
+			p.ctx.Similar.Add(fileid, *hash)
 		}
 	}
 	// 添加至搜索引擎

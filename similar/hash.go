@@ -1,4 +1,4 @@
-package hashs
+package similar
 
 import (
 	"image"

@@ -1,4 +1,4 @@
-package hashs
+package similar
 
 import (
 	"fmt"
@@ -63,7 +63,7 @@ func TestStoreQuery(t *testing.T) {
 		}
 		s.Add(files[i].Name(), *hash)
 	}
-	hash, _, err := CreateHash(filepath.Join(abspath, "_6080037815858607041_1215f33bb5be7ab6f00.jpg"))
+	hash, _, err := CreateHash(filepath.Join(abspath, "3243364363955576423_3243364358016232593.jpg"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -75,6 +75,33 @@ func TestStoreQuery(t *testing.T) {
 		}
 		// 越低匹配度越高
 		// fmt.Println(datas[i].Score <= 100 || datas[i].RatioDiff < 0.1)
+	}
+
+}
+
+func TestHashsQuery(t *testing.T) {
+	s := NewStore("")
+	abspath, err := filepath.Abs("../tmps")
+	if err != nil {
+		t.Error(err)
+	}
+	files, err := os.ReadDir(abspath)
+	if err != nil {
+		t.Error(err)
+	}
+	for i := 0; i < len(files); i++ {
+		filename := filepath.Join(abspath, files[i].Name())
+		hash, _, err := CreateHash(filename)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		s.Add(files[i].Name(), *hash)
+	}
+
+	datas := s.Query(filepath.Join(abspath, "_6080037815858607041_1215f33bb5be7ab6f00.jpg"))
+	for i := 0; i < len(datas); i++ {
+		fmt.Println(datas[i])
 	}
 
 }

@@ -1,4 +1,4 @@
-package hashs
+package similar
 
 import (
 	"context"
@@ -135,7 +135,7 @@ func (s *Storer) Query(filePath string) []string {
 					if v, ok := datas[i].ID.(string); ok {
 						paths = append(paths, v)
 					}
-				} else if datas[i].Score < 60 && datas[i].RatioDiff <= 0.1 {
+				} else if datas[i].Score < 60 && datas[i].RatioDiff <= 0.1 && datas[i].DHashDistance < 10 {
 					if v, ok := datas[i].ID.(string); ok {
 						paths = append(paths, v)
 					}
