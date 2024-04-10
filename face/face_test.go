@@ -29,6 +29,9 @@ func TestIsFace(t *testing.T) {
 		filepath.Join("../tmps", "martin-martz-qzfu2K5Iz7I-unsplash.jpg"),
 		filepath.Join("../tmps", "1591674174665240576_1.jpg"),
 		filepath.Join("../tmps", "1653225002987298816_1.jpg"),
+
+		filepath.Join("../tmps", "3139879303894312305_3139879296571059763.jpg"),
+		filepath.Join("../tmps", "3139879303894312305_3139879296588045523.jpg"),
 	}
 	for i := 0; i < len(paths); i++ {
 		fmt.Println(IsFace(paths[i]))

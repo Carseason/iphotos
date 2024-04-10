@@ -1,4 +1,4 @@
-package store
+package hashs
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -34,7 +35,7 @@ func NewStore(path string) *Storer {
 		cancel: cancel,
 	}
 	if len(path) > 0 {
-		s.p = filepath.Join(path, "index")
+		s.p = filepath.Join(path, "hashs")
 		s.register()
 		go s.sleep()
 	}
@@ -125,9 +126,16 @@ func (s *Storer) Query(filePath string) []string {
 	if img, err := imaging.Open(filePath); err == nil {
 		if hash, img := duplo.CreateHash(img); img != nil {
 			datas := s.store.Query(hash)
+			sort.Sort(datas)
 			for i := 0; i < len(datas); i++ {
-				// 越低匹配度越高
+				// 如果 score 为负数，则认为照片几乎一样
+				// 如果 score < 60, 则认为照片角度不一定一样, 再计算绝对差来区别
+				//
 				if datas[i].Score <= 0 {
+					if v, ok := datas[i].ID.(string); ok {
+						paths = append(paths, v)
+					}
+				} else if datas[i].Score < 60 && datas[i].RatioDiff <= 0.1 {
 					if v, ok := datas[i].ID.(string); ok {
 						paths = append(paths, v)
 					}

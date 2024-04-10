@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 
-	"github.com/carseason/iphotos/store"
+	"github.com/carseason/iphotos/hashs"
 )
 
 type Context struct {
 	context.Context
 	cancel   context.CancelFunc
 	Searcher ContextSearch[*SearchItem, []*SearchItem]
-	Storer   *store.Storer
+	Hashser  *hashs.Storer
 }
 
 type ContextSearch[T SearchT, TS SearchTS] interface {

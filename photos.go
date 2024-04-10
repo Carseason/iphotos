@@ -8,16 +8,16 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/carseason/iphotos/store"
+	"github.com/carseason/iphotos/hashs"
 )
 
 type Photos struct {
-	values map[string]*Photo
-	search Searcher[*SearchItem, []*SearchItem]
-	path   string
-	mx     *sync.RWMutex
-	loger  *slog.Logger
-	Storer *store.Storer
+	values  map[string]*Photo
+	search  Searcher[*SearchItem, []*SearchItem]
+	path    string
+	mx      *sync.RWMutex
+	loger   *slog.Logger
+	Hashser *hashs.Storer
 }
 
 // 存储目录
@@ -43,12 +43,12 @@ func NewPhotos(p1 string) (*Photos, error) {
 		return nil, err
 	}
 	ipos := &Photos{
-		path:   p1,
-		values: make(map[string]*Photo),
-		mx:     &sync.RWMutex{},
-		search: s,
-		loger:  slog.New(slog.NewTextHandler(os.Stderr, nil)),
-		Storer: store.NewStore(p1),
+		path:    p1,
+		values:  make(map[string]*Photo),
+		mx:      &sync.RWMutex{},
+		search:  s,
+		loger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
+		Hashser: hashs.NewStore(p1),
 	}
 	return ipos, nil
 }
@@ -69,7 +69,7 @@ func (p *Photos) newContext() *Context {
 		Context:  ctx,
 		cancel:   cancel,
 		Searcher: p.search,
-		Storer:   p.Storer,
+		Hashser:  p.Hashser,
 	}
 }
 
