@@ -63,7 +63,7 @@ func TestStoreQuery(t *testing.T) {
 		}
 		s.Add(files[i].Name(), *hash)
 	}
-	hash, _, err := CreateHash(filepath.Join(abspath, "3243364363955576423_3243364358016232593.jpg"))
+	hash, _, err := CreateHash(filepath.Join(abspath, "_6080037815858607041_1215f33bb5be7ab6f00.jpg"))
 	if err != nil {
 		t.Error(err)
 	}

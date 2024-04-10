@@ -116,8 +116,17 @@ func (b *Bleve[T, TS]) Delete(keys ...string) error {
 }
 func (b *Bleve[T, TS]) genQuery(req RequestSearch) *bleve.SearchRequest {
 	if n := len(req.Ids); n > 0 {
-		qry := bleve.NewDocIDQuery(req.Ids)
-		qs := bleve.NewConjunctionQuery(qry)
+		var q []query.Query
+		qry := query.NewDocIDQuery(req.Ids)
+		q = append(q, qry)
+		if n := len(req.Filters); n > 0 {
+			for k, v := range req.Filters {
+				req := bleve.NewMatchQuery(fmt.Sprintf("+%v:'%v'", k, v))
+				req.SetField(k)
+				q = append(q, req)
+			}
+		}
+		qs := query.NewConjunctionQuery(q)
 		req := bleve.NewSearchRequestOptions(qs, n, 0, req.Explain)
 		return req
 	}
