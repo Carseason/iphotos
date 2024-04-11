@@ -128,9 +128,11 @@ func (ps *Photos) RemovePhoto(serialId string, deleteIndex bool) error {
 			if err != nil || len(datas) == 0 {
 				break
 			}
+			ps.Similar.Delete(datas...)
 			ps.search.Delete(datas...)
 		}
 	}
+	ps.Similar.Save()
 	return nil
 }
 

@@ -162,10 +162,12 @@ func (s *Storer) Has(id string) bool {
 	defer s.mx.RUnlock()
 	return s.store.Has(id)
 }
-func (s *Storer) Delete(id string) {
+func (s *Storer) Delete(ids ...string) {
 	s.mx.Lock()
 	defer s.mx.Unlock()
-	s.store.Delete(id)
+	for i := 0; i < len(ids); i++ {
+		s.store.Delete(ids[i])
+	}
 }
 func (s *Storer) Ids(id string) []string {
 	s.mx.RLock()
