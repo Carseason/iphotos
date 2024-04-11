@@ -1,64 +1,48 @@
 package iphotos
 
 import (
-	"strconv"
-	"strings"
+	"reflect"
 
 	goexif "github.com/dsoprea/go-exif/v3"
+	exifcommon "github.com/dsoprea/go-exif/v3/common"
 )
 
-type Exif struct {
-	LastDate         string `json:"exifLastDate,omitempty"`
-	ExifModel        string `json:"exifModel,omitempty"` //型号
-	ExifMake         string `json:"exifMake,omitempty"`  //型号
-	ExifWidth        string `json:"exifWidth,omitempty"`
-	ExifHeight       string `json:"exifHeight,omitempty"`
-	ExifLength       string `json:"exifLength,omitempty"`
-	ExifOriginalDate string `json:"exifOriginalDate,omitempty"`
-}
-
-func GetImageExifData(p1 string) ([]goexif.ExifTag, *goexif.MiscellaneousExifData, error) {
+// 获取图片exif
+func GetImageExif(p1 string) (*PhotoImageExif, error) {
 	rawExif, err := goexif.SearchFileAndExtractExif(p1)
-	if err != nil {
-		return nil, nil, err
-	}
-	return goexif.GetFlatExifData(rawExif, &goexif.ScanOptions{})
-
-}
-func GetImageExif(p1 string) (*Exif, error) {
-	tags, _, err := GetImageExifData(p1)
 	if err != nil {
 		return nil, err
 	}
-	var item Exif
-	for i := 0; i < len(tags); i++ {
-		switch strings.TrimSpace(tags[i].TagName) {
-		case "ImageWidth":
-			if v, ok := anyToInt64(tags[i].Value); ok {
-				item.ExifWidth = strconv.FormatInt(v, 10)
-			}
-		case "ImageLength":
-			if v, ok := anyToInt64(tags[i].Value); ok {
-				item.ExifHeight = strconv.FormatInt(v, 10)
-			}
-		case "Model":
-			if v, ok := tags[i].Value.(string); ok {
-				item.ExifModel = v
-			}
-		case "Make":
-			if v, ok := tags[i].Value.(string); ok {
-				item.ExifMake = v
-			}
-		case "DateTime":
-			if v, ok := tags[i].Value.(string); ok {
-				item.LastDate = v
-			}
-		case "DateTimeOriginal":
-			if v, ok := tags[i].Value.(string); ok {
-				item.ExifOriginalDate = v
-			}
-		}
-		// fmt.Printf("%v: %v\n", tags[i].TagName, tags[i].Value)
+	entries, _, err := goexif.GetFlatExifData(rawExif, nil)
+	if err != nil {
+		return nil, err
 	}
-	return &item, nil
+	photo := &PhotoImageExif{}
+	getGps := func() (*goexif.GpsInfo, error) {
+		im, err := exifcommon.NewIfdMappingWithStandard()
+		if err != nil {
+			return nil, err
+		}
+		ti := goexif.NewTagIndex()
+		_, index, err := goexif.Collect(im, ti, rawExif)
+		if err != nil {
+			return nil, err
+		}
+		ifd, err := index.RootIfd.ChildWithIfdPath(exifcommon.IfdGpsInfoStandardIfdIdentity)
+		if err != nil {
+			return nil, err
+		}
+		return ifd.GpsInfo()
+	}
+	elem := reflect.ValueOf(photo).Elem()
+	for _, v := range entries {
+		elem.FieldByName(v.TagName).Set(reflect.ValueOf(v.Value))
+	}
+	if gi, err := getGps(); err == nil {
+		photo.ExifGps = ExifGps{
+			Latitude:  gi.Latitude.Decimal(),
+			Longitude: gi.Longitude.Decimal(),
+		}
+	}
+	return photo, nil
 }

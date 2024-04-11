@@ -5,22 +5,16 @@ import (
 	"testing"
 )
 
-func TestExif(t *testing.T) {
-	relA := "./tmps/MVIMG_20240316_193529.jpg"
-	row, err := GetImageExif(relA)
+func TestGetExif(t *testing.T) {
+	e, err := GetImageExif("./tmps/IMG_20240411_160754.jpg")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(row.ExifModel, row.ExifMake)
-}
+	fmt.Println(
+		e.GetImageWidth(),
+		e.GetImageHeight(),
+		e.GetMake(),
+	)
+	fmt.Println(e.ExifGps)
 
-func TestExifData(t *testing.T) {
-	relA := "./tmps/MVIMG_20240316_193529.jpg"
-	tags, _, err := GetImageExifData(relA)
-	if err != nil {
-		t.Error(err)
-	}
-	for i := 0; i < len(tags); i++ {
-		fmt.Printf("%v: %v\n", tags[i].TagName, tags[i].Value)
-	}
 }

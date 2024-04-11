@@ -35,6 +35,11 @@ type RequestSearch struct {
 	Sorts   []string
 	// 倒叙
 	Explain bool
+
+	// 经度
+	Longitude float64 `json:"Longitude,omitempty"`
+	// 纬度
+	Latitude float64 `json:"Latitude,omitempty"`
 }
 
 type SearchTS interface {
@@ -71,6 +76,9 @@ type SearchItem struct {
 	ExifWidth        string `json:"exifWidth,omitempty"`
 	ExifHeight       string `json:"exifHeight,omitempty"`
 	ExifOriginalDate string `json:"exifOriginalDate,omitempty"`
+	// 经纬度
+	// [Longitude,Latitude]
+	Location []float64 `json:"location,omitempty"` // Built up using Latitude and Longitude
 }
 
 func (s *SearchItem) IsImage() bool {

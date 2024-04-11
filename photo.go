@@ -27,10 +27,10 @@ type Photo struct {
 	ctx *Context
 	mx  *sync.RWMutex
 	//是否正在配置中
-	indexing  bool
-	checkHash bool
-	checkFace bool
-	checkExif bool
+	indexing     bool
+	checkSimilar bool
+	checkFace    bool
+	checkExif    bool
 }
 type PhotoConfig struct {
 	// 要排除的文件夹
@@ -39,8 +39,8 @@ type PhotoConfig struct {
 	ExcludePaths []string
 	// 是否检索exif
 	CheckExif bool
-	// 是否检索hash相似
-	CheckHash bool
+	// 是否检索相似照片
+	CheckSimilar bool
 	// 是否识别人脸
 	CheckFace bool
 }
@@ -77,7 +77,7 @@ func NewPhoto(ctx *Context, serialId string, cf *PhotoConfig) (*Photo, error) {
 		p.excludeDirs = cf.getExcludeDirs()
 		p.excludePaths = cf.getExcludePaths()
 		p.checkFace = cf.CheckFace
-		p.checkHash = cf.CheckHash
+		p.checkSimilar = cf.CheckSimilar
 		p.checkExif = cf.CheckExif
 	}
 	go p.watchFile()
@@ -176,6 +176,7 @@ func (p *Photo) addPath(p1 string) error {
 	f.Close()
 	// 处理文件夹,一层一层处理
 	for i := 0; i < len(dirs); i++ {
+
 		p.addPath(dirs[i])
 	}
 	return nil
@@ -337,11 +338,18 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 	// 处理exif
 	if p.checkExif {
 		if rawExif, err := GetImageExif(p1); err == nil {
-			item.ExifHeight = rawExif.ExifHeight
-			item.ExifWidth = rawExif.ExifWidth
-			item.ExifModel = rawExif.ExifModel
-			item.ExifOriginalDate = rawExif.ExifOriginalDate
-			item.ExifMake = rawExif.ExifMake
+			item.ExifHeight = strconv.FormatInt(rawExif.GetImageHeight(), 10)
+			item.ExifWidth = strconv.FormatInt(rawExif.GetImageWidth(), 10)
+			item.ExifOriginalDate = rawExif.GetDateTimeOriginal()
+			item.ExifModel = rawExif.GetModel()
+			item.ExifMake = rawExif.GetMake()
+			// 坐标
+			if rawExif.Longitude > 0 || rawExif.Latitude > 0 {
+				item.Location = []float64{
+					rawExif.Longitude,
+					rawExif.Latitude,
+				}
+			}
 		}
 	}
 	// 存在人脸
@@ -351,7 +359,7 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 	// 	}
 	// }
 	// 相似图片
-	if p.checkHash && !p.ctx.Similar.Has(fileid) {
+	if p.checkSimilar && !p.ctx.Similar.Has(fileid) {
 		if hash, _, err := similar.CreateHash(p1); err == nil && hash != nil {
 			p.ctx.Similar.Add(fileid, *hash)
 		}

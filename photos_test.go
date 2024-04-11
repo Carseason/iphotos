@@ -12,12 +12,12 @@ func TestPhotos(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = p.AddPhoto("1", "./", nil)
+	err = p.AddPhoto("1", "./tmps", nil)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(60 * time.Second)
 	datas, err := p.Searcher().Query(RequestSearch{
 		Limit: 10,
 	})
@@ -89,6 +89,7 @@ func TestPhotosRemovePhoto(t *testing.T) {
 		return
 	}
 }
+
 func TestPhotosQuery(t *testing.T) {
 	p, err := NewPhotos("./datas")
 	if err != nil {
@@ -96,16 +97,18 @@ func TestPhotosQuery(t *testing.T) {
 		return
 	}
 	datas, err := p.Searcher().Query(RequestSearch{
-		Limit: 10,
+		Limit: 100,
 		Filters: map[string]interface{}{
 			Index_SerialId: "1",
 		},
+		Longitude: 33.333,
+		Latitude:  44.444,
 	})
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	for i := 0; i < len(datas.Result); i++ {
-		fmt.Println(datas.Result[i])
+		fmt.Println(datas.Result[i].Location)
 	}
 }

@@ -50,8 +50,13 @@ func (b *Bleve[T, TS]) createIndex() error {
 			v := bleve.NewTextFieldMapping()
 			fileStatMapping.AddFieldMappingsAt(b.propertys[i], v)
 		}
+		// 对地理支持
+		locationMapping := bleve.NewGeoPointFieldMapping()
+		fileStatMapping.AddFieldMappingsAt("location", locationMapping)
+
 		mapping := bleve.NewIndexMapping()
 		mapping.DefaultMapping = fileStatMapping
+
 		return mapping
 	}()
 	// 初始化
@@ -115,37 +120,52 @@ func (b *Bleve[T, TS]) Delete(keys ...string) error {
 	return nil
 }
 func (b *Bleve[T, TS]) genQuery(req RequestSearch) *bleve.SearchRequest {
+	qs := bleve.NewConjunctionQuery()
 	if n := len(req.Ids); n > 0 {
-		var q []query.Query
-		qry := query.NewDocIDQuery(req.Ids)
-		q = append(q, qry)
+		q := query.NewDocIDQuery(req.Ids)
+		qs.AddQuery(q)
 		if n := len(req.Filters); n > 0 {
 			for k, v := range req.Filters {
-				req := bleve.NewMatchQuery(fmt.Sprintf("+%v:'%v'", k, v))
-				req.SetField(k)
-				q = append(q, req)
+				qry := bleve.NewMatchQuery(fmt.Sprintf("+%v:'%v'", k, v))
+				qry.SetField(k)
+				qs.AddQuery(qry)
 			}
 		}
-		qs := query.NewConjunctionQuery(q)
 		req := bleve.NewSearchRequestOptions(qs, n, 0, req.Explain)
 		return req
 	}
-	var q []query.Query
+	// 查询位置
+	if req.Longitude > 0 || req.Latitude > 0 {
+		qry := bleve.NewGeoDistanceQuery(req.Longitude, req.Latitude, "1km")
+		qry.SetField("location")
+		qs.AddQuery(qry)
+		if n := len(req.Filters); n > 0 {
+			for k, v := range req.Filters {
+				qry := bleve.NewMatchQuery(fmt.Sprintf("+%v:'%v'", k, v))
+				qry.SetField(k)
+				qs.AddQuery(qry)
+			}
+		}
+		return bleve.NewSearchRequestOptions(qs, int(req.Limit), int(req.Offset), req.Explain) //搜索模板，数量，开始，正反排序
+	}
+
 	keyword := strings.TrimSpace(req.Keyword)
 	if len(keyword) == 0 {
-		q = append(q, bleve.NewMatchAllQuery()) //获取全部
+		//获取全部
+		qs.AddQuery(bleve.NewMatchAllQuery())
 	} else {
 		req := bleve.NewMatchQuery(keyword)
-		q = append(q, req) //根据关键词搜索
+		//根据关键词搜索
+		qs.AddQuery(req)
 	}
 	if n := len(req.Filters); n > 0 {
 		for k, v := range req.Filters {
-			req := bleve.NewMatchQuery(fmt.Sprintf("+%v:'%v'", k, v))
-			req.SetField(k)
-			q = append(q, req)
+			qry := bleve.NewMatchQuery(fmt.Sprintf("+%v:'%v'", k, v))
+			qry.SetField(k)
+			qs.AddQuery(qry)
 		}
 	}
-	qs := query.NewConjunctionQuery(q)
+
 	return bleve.NewSearchRequestOptions(qs, int(req.Limit), int(req.Offset), req.Explain) //搜索模板，数量，开始，正反排序
 }
 func (b *Bleve[T, TS]) Query(req RequestSearch) (*ResponseSearch[TS], error) {

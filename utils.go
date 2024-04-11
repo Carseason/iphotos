@@ -79,6 +79,10 @@ func anyToInt64(vs any) (int64, bool) {
 	}
 	return result, result > 0
 }
+func anyToInt64Value(vs any) int64 {
+	v, _ := anyToInt64(vs)
+	return v
+}
 
 func anyToStrings(vs any) []string {
 	switch v := vs.(type) {
