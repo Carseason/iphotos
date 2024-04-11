@@ -134,6 +134,14 @@ func (ps *Photos) RemovePhoto(serialId string, deleteIndex bool) error {
 	return nil
 }
 
+// 清空相册并重新开始
+func (ps *Photos) ClearPhoto(serialId string, path string, cfs ...*PhotoConfig) error {
+	if err := ps.RemovePhoto(serialId, true); err != nil {
+		return err
+	}
+	return ps.AddPhoto(serialId, path, cfs...)
+}
+
 // 查询相册
 func (ps *Photos) QueryPhoto(serialId string) (*Photo, bool) {
 	ps.mx.RLock()
