@@ -73,8 +73,6 @@ type SearchItem struct {
 	//exif
 	ExifModel        string `json:"exifModel,omitempty"` //型号
 	ExifMake         string `json:"exifMake,omitempty"`  //品牌
-	ExifWidth        string `json:"exifWidth,omitempty"`
-	ExifHeight       string `json:"exifHeight,omitempty"`
 	ExifOriginalDate string `json:"exifOriginalDate,omitempty"`
 	// 经纬度
 	// [Longitude,Latitude]

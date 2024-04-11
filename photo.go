@@ -338,8 +338,6 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 	// 处理exif
 	if p.checkExif {
 		if rawExif, err := GetImageExif(p1); err == nil {
-			item.ExifHeight = strconv.FormatInt(rawExif.GetImageHeight(), 10)
-			item.ExifWidth = strconv.FormatInt(rawExif.GetImageWidth(), 10)
 			item.ExifOriginalDate = rawExif.GetDateTimeOriginal()
 			item.ExifModel = rawExif.GetModel()
 			item.ExifMake = rawExif.GetMake()
