@@ -2,19 +2,26 @@ package iphotos
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
 func TestGetExif(t *testing.T) {
-	e, err := GetImageExif("./tmps/IMG_20240411_160754.jpg")
+	files, err := os.ReadDir("./tmps")
 	if err != nil {
 		t.Error(err)
+		return
 	}
-	fmt.Println(
-		e.GetImageWidth(),
-		e.GetImageHeight(),
-		e.GetMake(),
-	)
-	fmt.Println(e.ExifGps)
-
+	for i := 0; i < len(files); i++ {
+		fp := filepath.Join("./tmps", files[i].Name())
+		e, err := GetImageExif(fp)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		fmt.Println(
+			e.GetGps(),
+		)
+	}
 }

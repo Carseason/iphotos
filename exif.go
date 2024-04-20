@@ -34,9 +34,15 @@ func GetImageExif(p1 string) (*PhotoImageExif, error) {
 		}
 		return ifd.GpsInfo()
 	}
-	elem := reflect.ValueOf(photo).Elem()
-	for _, v := range entries {
-		elem.FieldByName(v.TagName).Set(reflect.ValueOf(v.Value))
+	if ref := reflect.ValueOf(photo); ref.IsValid() {
+		elem := ref.Elem()
+		for _, v := range entries {
+			if v.TagName != "" {
+				if ref1 := elem.FieldByName(v.TagName); ref1.IsValid() {
+					elem.FieldByName(v.TagName).Set(reflect.ValueOf(v.Value))
+				}
+			}
+		}
 	}
 	if gi, err := getGps(); err == nil {
 		photo.ExifGps = ExifGps{
