@@ -338,7 +338,8 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 	// 处理exif
 	if p.checkExif {
 		if rawExif, err := GetImageExif(p1); err == nil {
-			item.ExifOriginalDate = rawExif.GetDateTimeOriginal()
+			exitDate := rawExif.GetDateTimeOriginal()
+			item.ExifOriginalDate = exitDate
 			item.ExifModel = rawExif.GetModel()
 			item.ExifMake = rawExif.GetMake()
 			// 坐标
@@ -347,6 +348,11 @@ func (p *Photo) addImageIndex(p1, ext string) error {
 					rawExif.Longitude,
 					rawExif.Latitude,
 				}
+			}
+			// exif的日期
+			if v, err := time.Parse(exitDate, time.DateTime); err == nil {
+				item.LastDate = v.Format(time.DateTime)
+				item.LastTimestamp = strconv.FormatInt(v.Unix(), 10)
 			}
 		}
 	}
